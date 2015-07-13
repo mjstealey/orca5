@@ -67,21 +67,21 @@ try:
     #                         int(os.environ['EC2_SSH_RETRIES']),
     #                         os.environ['NEUCA_INI'], #userdata
     #                         os.environ['UNIT_HOSTNAME_URL']) 
-    LOG.info("PRUTH Before started instance: " + os.environ['UNIT_HOSTNAME_URL'])
-    vm = VM.start(os.environ['EC2_INSTANCE_TYPE'],
-                             os.environ['AMI_NAME'],
-                             os.environ['AKI_NAME'],
-                             os.environ['ARI_NAME'],
-                             os.environ['EC2_SSH_KEY'],
-                             1,#int(os.environ['EC2_STARTUP_RETRIES']),
-                             int(os.environ['EC2_PING_RETRIES']),
-                             int(os.environ['EC2_SSH_RETRIES']),
-                             os.environ['NEUCA_INI'], #userdata  
-                             os.environ['UNIT_HOSTNAME_URL'])
-    
-    LOG.info("Started VM: " + str(vm.get_name()) )
+    LOG.info("About to start instance: " + os.environ['UNIT_HOSTNAME_URL'])
+    vm = VM.start(os.environ['EC2_TENANT_ID'],
+                  os.environ['EC2_INSTANCE_TYPE'],
+                  os.environ['AMI_NAME'],
+                  os.environ['AKI_NAME'],
+                  os.environ['ARI_NAME'],
+                  os.environ['EC2_SSH_KEY'],
+                  1,#int(os.environ['EC2_STARTUP_RETRIES']),
+                  int(os.environ['EC2_PING_RETRIES']),
+                  int(os.environ['EC2_SSH_RETRIES']),
+                  os.environ['NEUCA_INI'], #userdata  
+                  os.environ['UNIT_HOSTNAME_URL'])
 
-    
+
+    LOG.info("Success starting VM: " + str(vm.get_name()) )
 
     #LOG.info(str(vm.get_info_str()))
 

@@ -71,6 +71,7 @@
 				<echo message="EC2_STARTUP_RETRIES=${ec2.startup.retries}" />
 				<echo message="EC2_CONNECTION_TIMEOUT=${ec2.connection.timeout}" />
 				<echo message="EC2_REQUEST_TIMEOUT=${ec2.request.timeout}" />
+				<echo message="EC2_TENANT_ID=${ec2.tenant.id}" />
 				<echo message="EC2_SITE_PROPERTIES=${ec2.site.properties}" />
 				<echo message="before create instance" />
 				<exec executable="${ec2.scripts}/${cloud.type}-start" resultproperty="code" outputproperty="create.instance.output">
@@ -260,6 +261,7 @@
 							<env key="EC2_SSH_RETRIES" value="${ec2.ssh.retries}" />
 							<env key="EC2_STARTUP_RETRIES" value="${ec2.startup.retries}" />
 							<env key="EC2_CONNECTION_TIMEOUT" value="${ec2.connection.timeout}" />
+							<env key="EC2_TENANT_ID" value="${ec2.tenant.id}" />
 							<env key="EC2_REQUEST_TIMEOUT" value="${ec2.request.timeout}" />
 						</exec>
 						<echo message="after create instance: exit code ${code}, ${create.instance.output}" />

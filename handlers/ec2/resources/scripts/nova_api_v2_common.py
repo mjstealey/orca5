@@ -116,454 +116,6 @@ class VM_Broken_Unsshable(VM_Broken):
 
 class VM:
 
-    @classmethod
-    def _get_console_log_by_ID(self, id):
-        try:
-            retry = os.environ['EC2_RETRIES']
-        except:
-            retry = 3
-
-        try:
-            timeout = os.environ['EC2_TIMEOUT']
-        except:
-            timeout = 5
-
-
-        if id == None:
-            raise Nova_Command_Fail, "_get_console_log_by_ID Invalid id " + str(id)
-
-        data = None
-        vm_console_log = ''
-        for i in range(retry):
-            try:
-                cmd = ["nova", "console-log", str(id) ]
-                rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=60) #TODO: needs real timeout                                                                    
-
-                if rtncode != 0:
-                    raise VM_Does_Not_Exist, str(cmd)
-
-                vm_console_log = data_stdout
-                break
-            except VM_Does_Not_Exist as e:
-                raise e
-            except Exception as e:
-                LOG.warning("Failed cmd: " + str(cmd) + ", retrying (" + str(i) + ")")
-                time.sleep(timeout)
-
-        if i == retry:
-            raise Nova_Command_Fail, "Failed cmd  " + str(retry) + " times, giving up: " + str(cmd)
-
-        return vm_console_log
-
-
-    @classmethod
-    def _parse_vm_info(self, info):
-        vm_info={}
-        lines = info.split('\n')
-
-        
-
-        if len(lines) >= 4:
-            lines = info.split('\n')[3:-2]
-        else:
-            raise Nova_Command_Fail, "Parse vm info: len(lines) < 4: " + str(id)
-
-        for line in lines:
-            line = line.split('|')
-            if len(line) >= 3:
-                vm_info[line[1].strip()] = line[2].strip()
-            elif len(line) >= 2:
-                vm_info[line[1].strip()] = ''
-
-        return vm_info
-
-    @classmethod
-    def _get_all_info_by_ID(self, id):
-        try: 
-            retry = os.environ['EC2_RETRIES']
-        except:
-            retry = 3
-
-        try:
-            timeout = os.environ['EC2_TIMEOUT']
-        except:
-            timeout = 5
-
-            
-        if id == None:
-            raise Nova_Command_Fail, "_get_info_by_ID Invalid id " + str(id)
-        
-        data = None
-        vm_info = {}
-        for i in range(retry):
-            try:
-                cmd = ["nova", "show", str(id) ]
-                rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=60) #TODO: needs real timeout
-                
-                if rtncode != 0:
-                    raise VM_Does_Not_Exist, str(cmd)
-                                  
-                vm_info = self._parse_vm_info(data_stdout)
-                break
-            except VM_Does_Not_Exist as e:
-                raise e
-            except Exception as e:
-                LOG.warning("Failed cmd: " + str(cmd) + ", retrying (" + str(i) + ")")
-                time.sleep(timeout)
-        
-        if i == retry:
-            raise Nova_Command_Fail, "Failed cmd  " + str(retry) + " times, giving up: " + str(cmd)
-
-        return vm_info
-
-    @classmethod
-    def _get_info_by_ID(self, id, field):
-        if id == None:
-            raise Nova_Command_Fail, "Invalid id " + str(id)
-
-        try:
-            vm_info = self._get_all_info_by_ID(id)
-            return vm_info[field]
-        except VM_Does_Not_Exist as e:
-            raise e
-        except Exception as e:
-            raise Nova_Commnad_Fail, "No value for " + str(field) + " in info for " + str(id)
-
-    @classmethod
-    def _get_info_by_name(self, name, field):
-        #name and id are interchangible for this purpose
-        try:
-            return self._get_info_by_ID(name, field)
-        except Exception as e:
-            LOG.error("_get_info_by_name: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
-            raise e
-        
-        
-    @classmethod
-    def get_state_by_ID(self, id):
-        return self._get_info_by_ID(id,'OS-EXT-STS:vm_state')
-                  
-    @classmethod
-    def get_host_by_ID(self, id):
-        return self._get_info_by_ID(id,'OS-EXT-SRV-ATTR:host')
-
-    @classmethod
-    def get_instance_name_by_ID(self, id):
-        return self._get_info_by_ID(id,'OS-EXT-SRV-ATTR:instance_name')
-
-    @classmethod
-    def get_date_created_by_ID(self, id):
-        return self._get_info_by_ID(id,'created')
-
-    @classmethod
-    def get_instance_type_by_ID(self, id):
-        return self._get_info_by_ID(id,'flavor')
-
-    @classmethod
-    def get_image_by_ID(self, id):
-        return self._get_info_by_ID(id,'image')
-
-    @classmethod
-    def get_name_by_ID(self, id):
-        return self._get_info_by_ID(id,'name')
-
-    @classmethod
-    def get_status_by_ID(self, id):
-        return self._get_info_by_ID(id,'status')
-
-    @classmethod
-    def get_ip_by_ID(self, id):
-        return self._get_info_by_ID(id,'public network')
-
-    @classmethod
-    def exists_by_ID(self, id):
-        info = self._get_all_info_by_ID(id)
-        if len(info) > 0:
-            return True
-        else:
-            return False
-
-    @classmethod
-    def get_ID_by_name(self, name):
-        return self._get_info_by_name(name,'id')
-    
-    @classmethod
-    def get_console_log_by_ID(self, id):
-        return self._get_console_log_by_ID(id)
-
-    @classmethod
-    def _get_all_floating_ip_2_vm(self):
-        cmd = ["nova", "floating-ip-list" ]
-        rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=60) #TODO: needs real timeout                                                                            
-        if rtncode != 0:
-            raise Nova_Command_Fail, str(cmd) + ": Failed to list floating ips"
-
-        #Parse the result 
-        floating_ip_info={}
-        lines = data_stdout.split('\n')
-
-        if len(lines) >= 4:
-            lines = info.split('\n')[3:-2]
-        else:
-            raise Nova_Command_Fail, "Parsing floating ips, len(lines) < 4:\n " + str(lines)
-
-        for line in lines:
-            line = line.split('|')
-            if len(line) >= 3:
-                floating_ip_info[line[1].strip()] = line[2].strip()
-       
-        return floating_ip_info
-
-    @classmethod
-    def _get_all_vms_2_floating_ip(self):
-        cmd = ["nova", "floating-ip-list" ]
-        rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=60) #TODO: needs real timeout                                                       
-        if rtncode != 0:
-            raise Nova_Command_Fail, str(cmd) + ": Failed to list floating ips"
-
-        #Parse the result
-        floating_ip_info={}
-        lines = data_stdout.split('\n')
-
-        if len(lines) >= 4:
-            lines = lines[3:-2]
-        else:
-            raise Nova_Command_Fail, "Parsing floating ips, len(lines) < 4:\n" + str(lines)
-
-        for line in lines:
-            line = line.split('|')
-            if len(line) >= 3 and line[2].strip() != 'None':  
-                floating_ip_info[line[2].strip()] = line[1].strip()
-                
-        return floating_ip_info
-
-
-    @classmethod
-    def get_floating_ip_by_id(self, id):
-        cmd = ["nova", "floating-ip-list" ]
-        rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=60) #TODO: needs real timeout                                                                        
-        if rtncode != 0:
-            raise Nova_Command_Fail, str(cmd) + ": Failed to list floating ips"
-
-        floating_ips = self._get_all_vms_2_floating_ip()
-
-        try:
-            ipaddr = floating_ips[id]
-        except:
-            ipaddr = None
-
-        return ipaddr
-
-    @classmethod
-    def _get_ip_from_allocate_floating_ip_info(self, info):
-        lines = info.split('\n')
-
-        if len(lines) >= 4:
-            lines = info.split('\n')[3:-2]
-        else:
-            raise Nova_Command_Fail, "Parse floating ip info: len(lines) < 4 \n" + str(info)
-
-        if len(lines) != 1:
-            raise Nova_Command_Fail, "Parse floating ip info: len(lines) != 1 \n" + str(info)
-
-        try:
-            #Could validate that ip str is in a valid form... but we dont
-            return lines[0].split('|')[1].strip()
-        except:
-            raise Nova_Command_Fail, "_get_ip_from_allocate_floating_ip_info could not find ip in line: " + str(info)
-
-
-    @classmethod
-    def _allocate_floating_ip(self, retries=10, timeout=20):
-        for i in range(retries):
-            try:
-
-                cmd = ["nova", "floating-ip-create" ]
-                rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=60) #TODO: needs real timeout              
-        
-                if rtncode == 0:
-                    ipaddr = self._get_ip_from_allocate_floating_ip_info(str(data_stdout))
-                    LOG.info("Allocated floating address: " + str(ipaddr))
-                    return ipaddr
-
-            except Exception as e:
-                pass
-                
-            LOG.warning("Failed to allocate floating ip " + str(i) + " times, retrying")
-        
-            if i >= retries:
-                raise Nova_Command_Fail, "Failed to allocate floating ip  " + str(i) + " times, giving up: " + str(cmd)
-                      
-            time.sleep(timeout)
-
-    @classmethod
-    def _assign_floating_ip(self, vm_id, ipaddr, retries=10, timeout=20):
-        for i in range(retries):
-            try:
-                cmd = ["nova", "add-floating-ip", str(vm_id), str(ipaddr) ]
-                rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=60) #TODO: needs real timeout                                                                         
-                
-                if rtncode == 0:
-                    #check to see if it was actually assigned
-                    if self.get_floating_ip_by_id(vm_id) != ipaddr:
-                        raise Nova_Command_Fail, "Failed check for associated floating ip (" + str(ipaddr) + ") to vm (" + str(vm_id) + ")"
-                    
-                    LOG.info("Assigned floating address " + str(ipaddr) + " to vm " + str(vm_id))
-                    return ipaddr
-
-            except Exception as e:
-                pass
-    
-            LOG.warning("Failed to associate floating ip  (" + str(ipaddr) + ") to vm (" + str(vm_id) + ") " + str(i) + " times, retrying")
-            LOG.warning("Info for failed associate for vm (" + str(vm_id) + "),  rtncode: " + str(rtncode) + ", data_stdout: " + str(data_stdout) + ", data_stderr: " + str(data_stderr))
-
-            if i >= retries:
-                raise Nova_Command_Fail, str(cmd) + ": Failed to associate floating ip (" + str(ipaddr) + ") to vm (" + str(vm_id) + ") " + str(i) + " times, giving up: " + str(cmd)
-    
-            time.sleep(timeout)
-
-
-    @classmethod
-    def _cleanup_vm_by_name(self, name):
-        try:
-            cmd = ["nova", "delete", str(name) ]
-            rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=60) #TODO: needs real timeout
-            
-            if rtncode != 0:
-                raise VM_Does_Not_Exist, str(cmd)
-
-        except VM_Does_Not_Exist as e:
-            LOG.warning("_cleanup_vm_by_name-VM_Does_Not_Exist: Usually OK, probably deleting a VM that was already deleted, " + str(type(e)) + " : " + str(e) )
-            return
-        except Exception as e:
-            LOG.error("_cleanup_vm_by_name-Exception: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
-            raise Nova_Command_Fail, "nova delete commmand failed for " + str(name) + ": " + str(cmd)
-
-    @classmethod
-    def _cleanup_vm_by_id(self, id):
-        #cleanup_vm_by_id  and cleanup_vm_by_name have the same syntax and are interchangeable
-        self._cleanup_vm_by_name(id)
-
-    @classmethod
-    def _cleanup_vm_by_name_poll(self, name, timeout):
-        self._cleanup_vm_by_id_poll(name, timeout)
-      
-    @classmethod
-    def _cleanup_vm_by_id_poll(self, id, timeout):
-        try:
-            begin = time.time()
-            while True:
-                time_passed = time.time() - begin
-                try:
-                    self._cleanup_vm_by_id(id)
-                except:
-                    pass
-            
-                if not self.exists_by_ID(id):
-                    return
-            
-                if time_passed > timeout:
-                    raise Nova_Command_Fail, "nova delete commmand failed for " + str(id)
-
-                time.sleep(10)
-
-        except VM_Does_Not_Exist:
-            #This is the goal so its not an error
-            return
-        except:
-            LOG.error("Cleanup instance failed: " + str(id))
-
-    @classmethod
-    def _cleanup_floating_addr(self, id, floating_addr, retries, timeout):
-        
-        for i in range(retries):
-                
-            try:
-                cmd = ["nova", "remove-floating-ip", str(id), str(floating_addr) ]
-                rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=60) #TODO: needs real timeout                                                                       
-                cmd = ["nova", "floating-ip-delete", str(floating_addr) ]
-                rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=60) #TODO: needs real timeout                                                                       
-                if rtncode == 0:
-                    return 
-                                                  
-            except Exception as e:
-                pass
-
-            LOG.debug("_cleanup_floating_addr " + floating_addr  + "failed. retrying (" + str(i) + ")")
-            time.sleep(timeout)
-            
-        raise Nova_Command_Fail, "VM._cleanup_floating_addr " + floating_addr  + "failed. giving up."
-    
-    @classmethod
-    def _clean_all(self, vm_name, floating_addr=None):
-        if floating_addr != None:
-            try:
-                self._cleanup_floating_addr(vm_name, floating_addr, 3, 60)
-            except:
-                pass
-
-        try:
-            self._cleanup_vm_by_name_poll(vm_name, 60*30)
-        except:
-            pass
-        
-    @classmethod
-    def clean_all(self, vm_name,address=None):
-        self._clean_all(vm_name,address)
-
-
-    @classmethod
-    def _ping_test_vm(self, floating_addr, retries, timeout):
-        
-        for i in range(retries):
-            try:
-                cmd = ["ping", "-c", "1",  str(floating_addr) ]
-                rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=60)                
-
-                if rtncode == 0:
-                    return True
-
-            except Exception as e:
-                pass
-
-            LOG.warning("Failed cmd: " + str(cmd) + ", retrying (" + str(i) + ")")
-            time.sleep(timeout)
-
-        if i == retries:
-            LOG.warning("Failed cmd  " + str(retries) + " times, giving up: " + str(cmd))
-            return False
-
-
-    @classmethod
-    def _ssh_test_vm(self, floating_addr, key, user, retries, timeout):
-        
-        for i in range(retries):
-            try:
-                cmd = ["ssh", "-q", 
-                       "-o", "PreferredAuthentications=publickey", 
-                       "-o", "HostbasedAuthentication=no", 
-                       "-o", "PasswordAuthentication=no",
-                       "-o", "StrictHostKeyChecking=no",
-                       "-o", "BatchMode=yes",
-                       "-o", "ConnectTimeout=50",
-                       "-i", str(key), 
-                       str(user) + "@" + str(floating_addr),
-                       "echo >/dev/null 2>&1"]
-                rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=60)
-
-                if rtncode == 0:
-                    return True
-
-            except Exception as e:
-                pass
-
-            LOG.warning("Failed cmd: " + str(cmd) + ", retrying (" + str(i) + ")")
-            time.sleep(timeout)
-
-        if i >= retries:
-            LOG.warning("Failed cmd  " + str(retries) + " times, giving up: " + str(cmd))
-            return False
-        
     def get_info_str(self):
         info =  "id                             : " + str(self.nova_server.id)+ " \n"
         info += "name                           : " + str(self.nova_server.name)+ " \n"
@@ -585,7 +137,7 @@ class VM:
         
         return info
 
-    def _start_vm(self, instance_type, ami, ssh_key, user_data_file, name):
+    def _start_vm(self, tenant_id, instance_type, ami, ssh_key, user_data_file, name):
         #Boot the vm
         retries = 3
         timeout = 10
@@ -605,23 +157,40 @@ class VM:
                     if n.label == "flat-data-net":
                         network.append({ 'net-id': n.id })
                         break
-                key=self.nova_client.keypairs.find(name="pruth")
+                key=self.nova_client.keypairs.find(name=tenant_id)
                 
                 #start vm
                 LOG.info('KEY: ' + str(key))
-                LOG.info('USERDATA: ' + str(user_data_file))
                 LOG.info('NAME: ' + str(name))
                 LOG.info('IMAGE: ' + str(image))
                 LOG.info('FLAVOR: ' + str(flavor))
                 LOG.info('NICS: ' + str(network))
+                LOG.info('USERDATA (file name): ' + str(user_data_file))
 
-                self.nova_server = self.nova_client.servers.create(name,image,flavor,nics=network,key_name='pruth',userdata=user_data_file)
+                user_data=''
+                try:
+                    f = open(user_data_file, 'r')
+                    user_data = f.read()
+                    LOG.info('USERDATA (content): ' + str(user_data))
+                    f.close()
+                except Exception as e:
+                    LOG.info('Exception: ' + str(e))
+                    LOG.info('USERDATA (content): No userdata (file unreadable)')
+
+                #ensure the file is closed
+                try:
+                    f.close()
+                except:
+                    pass
+                            
+
+                self.nova_server = self.nova_client.servers.create(name,image,flavor,nics=network,key_name='pruth',userdata=user_data)
                 #instance = nova_client.servers.create(name,image,flavor,nics=network,key=key,userdata=user_data_file)
               
-                LOG.info('**************   Printing server attributes ******************' )
-                LOG.info('dir\n: ' + str(dir(self.nova_server)))
-                LOG.info('dir\n: ' + str(self.nova_server.__dict__))
-                LOG.info('***************************************************************')
+                #LOG.info('**************   Printing server attributes ******************' )
+                #LOG.info('dir\n: ' + str(dir(self.nova_server)))
+                #LOG.info('dir\n: ' + str(self.nova_server.__dict__))
+                #LOG.info('***************************************************************')
                           
   
                 instance_id = str(self.nova_server.id)
@@ -653,70 +222,13 @@ class VM:
         #too many retries, give up
         raise Nova_Command_Fail, 'nova boot failed after ' + str(i) + ' retries, giving up'
 
-    @classmethod
-    def _get_ec2_image_name(self, image_nova):
-        image_ec2 = None
-        
-        LOG.debug("_get_ec2_image_name " + str(image_nova) )
-
-        #get image name 
-        cmd = ["glance", "show", str(image_nova) ]
-        rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=60*30)
-        
-        if rtncode != 0:
-            LOG.warning("glance show image_nova non-zero rtncode:  " + str(cmd) +
-                        ", rtncode: " + str(rtncode) +
-                        ", data_stdout: " + str(data_stdout) +
-                        ", data_stderr: " + str(data_stderr))
-            raise Nova_Command_Fail, str(cmd)
-        
-        #parse name out of euca-run-instances stdout
-        lines = data_stdout.split("\n")
-
-        name = None
-        for line in lines:
-            if line.startswith("Name"):
-                tokens = line.split()
-                if len(tokens) >= 2:
-                    name = tokens[1]
-                    break;
-
-        if name == None:
-            raise Nova_Command_Fail, "Failed to get name for image " + str(image_nova) + " : " + str(cmd) + ", rtncode: " + str(rtncode) +  ", data_stdout: " + str(data_stdout) + ", data_stderr: " + str(data_stderr)
-
-
-        #get ec2 from name
-        cmd = ["euca-describe-images" ]
-        rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=60*30)
-        
-        if rtncode != 0:
-            LOG.warning("euca-describe-images non-zero rtncode:  " + str(cmd) +
-                        ", rtncode: " + str(rtncode) +
-                        ", data_stdout: " + str(data_stdout) +
-                        ", data_stderr: " + str(data_stderr))
-            raise Nova_Command_Fail, str(cmd)
-        
-        #parse name out of euca-run-instances stdout
-        lines = data_stdout.split("\n")
-        
-        for line in lines:
-            tokens = line.split()
-            if len(tokens) >= 4:
-                if tokens[3] == "(" + name + ")":
-                    image_ec2 = tokens[1]
-                    break;
-                
-        if image_ec2== None:
-            raise Nova_Command_Fail, "Failed to get ec2_name for image " + str(image_nova) + " : " + str(cmd) + ", rtncode: " + str(rtncode) +  ", data_stdout: " + str(data_stdout) + ", data_stderr: " + str(data_stderr)
-                
-        return image_ec2
     
     @classmethod
-    def start(self, instance_type, ami, aki, ari, ssh_key, startup_retries, ping_retries, ssh_retries, user_data_file, name):
+    def start(self, tenant_id, instance_type, ami, aki, ari, ssh_key, startup_retries, ping_retries, ssh_retries, user_data_file, name):
         LOG.debug("start " + str(name))
         self.nova_client= client.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=True);
         new_vm = VM()
-        new_vm._start_vm(instance_type, ami, ssh_key, user_data_file, name)
+        new_vm._start_vm(tenant_id, instance_type, ami, ssh_key, user_data_file, name)
         return new_vm
 
     @classmethod
@@ -774,9 +286,8 @@ class VM:
     def get_created_date(self):
         return self.nova_server.created
     
-    @classmethod
-    def get_ip(self, id):
-        LOG.debug("Get ip for vm: " + id)
+    def get_ip(self):
+        LOG.debug("Get ip for vm: " + str(self.get_name()) + ", GET IP NOT IMPLEMENTED")
         return "GET IP NOT IMPLEMENTED"
 
         ip=""
@@ -796,223 +307,6 @@ class VM:
         return ip
 
     
-    @classmethod
-    def update_userdata(self, id, userdata_file):
-
-        retries = 3
-        timeout = 10
-        
-        for i in range(retries):
-            cmd = None
-            try:
-                cmd = ["nova", "update-userdata", str(id), str(userdata_file) ]
-                rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=60)
-                
-                if rtncode == 0:
-                    return True
-                
-            except Exception as e:
-                LOG.error("update_userdata: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
-                pass
-                
-            LOG.warning("Failed cmd: " + str(cmd) + ", retrying (" + str(i) + ")")
-            time.sleep(timeout)
-                
-        if i == retries:
-            LOG.warning("Failed cmd  " + str(retries) + " times, giving up: " + str(cmd))
-            return False
-                
-                
-                
-
-    @classmethod
-    def prepare_key(self, instance_ip, user_ssh_key, root_ssh_key, retries=10, timeout=3):
-        import traceback
-
-        #ip = self._get_floating_ip_by_id(id)
-        ip=instance_ip
-      
-        for i in range(retries):
-            cmd = None
-            try:
-                cmd = ["ssh", "-q",
-                       "-o", "PreferredAuthentications=publickey",
-                       "-o", "HostbasedAuthentication=no",
-                       "-o", "PasswordAuthentication=no",
-                       "-o", "StrictHostKeyChecking=no",
-                       "-o", "BatchMode=yes",
-                       "-o", "ConnectTimeout=50",
-                       "-i", str(root_ssh_key),
-                       str('root') + "@" + str(ip),
-                       "echo " + str(user_ssh_key) + " >> .ssh/authorized_keys"]
-                rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=3)
-                
-                if rtncode == 0:
-                    return True
-                
-            except Exception as e:
-                LOG.error("prepare-key: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
-                pass
-
-            LOG.warning("Failed cmd: " + str(cmd) + ", retrying (" + str(i) + ")")
-            time.sleep(timeout)
-
-        if i == retries:
-            LOG.warning("Failed cmd  " + str(retries) + " times, giving up: " + str(cmd))
-            return False
-
-    @classmethod
-    def prepare_keys(self, instance_ip, user_id, user_ssh_keys, shouldSudo, root_ssh_key, retries=1, timeout=3):
-        import traceback
-
-        LOG.debug('prepare_keys')
-        LOG.debug('instance_ip: ' + str(instance_ip))
-        LOG.debug('user_id:' + str(user_id))
-        LOG.debug('user_ssh_keys:' + str(user_ssh_keys))
-        LOG.debug('shouldSudo:' + str(shouldSudo))
-        LOG.debug('root_ssh_key:' + str(root_ssh_key))
-        
-
-        if user_id == 'root':
-            for key in user_ssh_keys:
-                VM.prepare_key(instance_ip, key, root_ssh_key)
-            
-            return
-        
-        else:
-            #if its a new user
-            ip=instance_ip
-            
-            # create account and add to sudoers                                                                                                                                                                                                                                           
-            #ssh $SSH_OPTS -i $KEY root@${machine} "useradd -m $user_login"
-            for i in range(retries):
-                cmd = None
-                try:
-                    cmd = ["ssh", "-q",
-                           "-o", "PreferredAuthentications=publickey",
-                           "-o", "HostbasedAuthentication=no",
-                           "-o", "PasswordAuthentication=no",
-                           "-o", "StrictHostKeyChecking=no",
-                           "-o", "BatchMode=yes",
-                           "-o", "ConnectTimeout=50",
-                           "-i", str(root_ssh_key),
-                           str('root') + "@" + str(ip),
-                           "useradd -m " + str(user_id) ]
-                    rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=3)
-                
-                    if rtncode == 0:
-                        break
-                        
-                except Exception as e:
-                    LOG.error("prepare-keys: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
-                    return
-
-                LOG.warning("prepare-keys: ssh failed, retrying (" + str(i) +  "). " + str(cmd))
-                time.sleep(timeout)
-
-            if i == retries:
-                LOG.warning("Failed cmd  " + str(retries) + " times, giving up: " + str(cmd))
-                return False
-
-            #ssh $SSH_OPTS -i $KEY root@${machine} "echo '${user_login} ALL=(ALL)  ALL' >> /etc/sudoers"
-            if shouldSudo.lower() == 'yes':
-                for i in range(retries):
-                    cmd = None
-                    try:
-                        cmd = ["ssh", "-q",
-                               "-o", "PreferredAuthentications=publickey",
-                               "-o", "HostbasedAuthentication=no",
-                               "-o", "PasswordAuthentication=no",
-                               "-o", "StrictHostKeyChecking=no",
-                               "-o", "BatchMode=yes",
-                               "-o", "ConnectTimeout=50",
-                               "-i", str(root_ssh_key),
-                               str('root') + "@" + str(ip),
-                               "echo '" + str(user_id)  + " ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers" ]
-                        rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=3)
-
-                        if rtncode == 0:
-                            break
-                    
-                    except Exception as e:
-                        LOG.error("prepare-keys: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
-                        return
-
-                    LOG.warning("prepare-keys: ssh failed, retrying (" + str(i) +  "). " + str(cmd))
-                    time.sleep(timeout)
-
-                if i == retries:
-                    LOG.warning("Failed cmd  " + str(retries) + " times, giving up: " + str(cmd))
-                    return False
-            else:
-                LOG.debug("Skipping adding user to sudoers")
-
-
-            # USERHOMEPREFIX=`ssh $SSH_OPTS -i $KEY root@${machine} "useradd -D | grep HOME | awk '{ split(\\$0, a, \"=\"); print a[2]}'"`
-            # guess home_prefix == /home then try to find reall prefix
-            user_home_prefix='/home'
-            for i in range(retries):
-                cmd = None
-                try:
-                    cmd = ["ssh", "-q",
-                           "-o", "PreferredAuthentications=publickey",
-                           "-o", "HostbasedAuthentication=no",
-                           "-o", "PasswordAuthentication=no",
-                           "-o", "StrictHostKeyChecking=no",
-                           "-o", "BatchMode=yes",
-                           "-o", "ConnectTimeout=50",
-                           "-i", str(root_ssh_key),
-                           str('root') + "@" + str(ip),
-                           "useradd -D | grep HOME | awk '{ split(\\$0, a, \"=\"); print a[2]}'" ]
-                    rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=3)
-
-                    if rtncode == 0:
-                        user_home_prefix = data_stdout
-                        break
-
-                except Exception as e:
-                    LOG.error("prepare-keys: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
-            
-                LOG.warning("prepare-keys: ssh failed, retrying (" + str(i) +  "). " + str(cmd))
-                time.sleep(timeout)
-
-            if i == retries:
-                LOG.warning("Failed cmd  " + str(retries) + " times, giving up: " + str(cmd))
-                
-            
-            #ssh $SSH_OPTS -i $KEY root@${machine} "echo ${user_key} >> ${USERHOMEPREFIX}/${user_login}/.ssh/authorized_keys"
-            for user_key in user_ssh_keys:
-                for i in range(retries):
-                    cmd = None
-                    try:
-                        cmd = ["ssh", "-q",
-                               "-o", "PreferredAuthentications=publickey",
-                               "-o", "HostbasedAuthentication=no",
-                               "-o", "PasswordAuthentication=no",
-                               "-o", "StrictHostKeyChecking=no",
-                               "-o", "BatchMode=yes",
-                               "-o", "ConnectTimeout=50",
-                               "-i", str(root_ssh_key),
-                               str('root') + "@" + str(ip),
-                               "mkdir -p " + str(user_home_prefix) + "/" + str(user_id) + "/.ssh; echo " + str(user_key)  +  " >> " + str(user_home_prefix) + "/" + str(user_id) + "/.ssh/authorized_keys; chown -R " + str(user_id) + ":" + str(user_id)
- + " " + str(user_home_prefix) + "/" + str(user_id) + "/.ssh"  ]
-                        rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=3)
-
-                        if rtncode == 0:
-                            break
-
-                    except Exception as e:
-                        LOG.error("prepare-keys: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
-                        return
-
-                    LOG.warning("prepare-keys: ssh failed, retrying (" + str(i) +  "). " + str(cmd))
-                    time.sleep(timeout)
-
-                    if i == retries:
-                        LOG.warning("Failed cmd  " + str(retries) + " times, giving up: " + str(cmd))
-                        return False
-
-            
 # Upon import, read in the needed OpenStack credentials from one of the right places.
 if (os.path.isfile(os.environ['EUCA_KEY_DIR'] + "/novarc")):
     Commands.source(os.environ['EUCA_KEY_DIR'] + "/novarc")
