@@ -68,7 +68,7 @@ try:
     #                         os.environ['NEUCA_INI'], #userdata
     #                         os.environ['UNIT_HOSTNAME_URL']) 
     LOG.info("PRUTH Before started instance: " + os.environ['UNIT_HOSTNAME_URL'])
-    instance_uuid = VM.start(os.environ['EC2_INSTANCE_TYPE'],
+    vm = VM.start(os.environ['EC2_INSTANCE_TYPE'],
                              os.environ['AMI_NAME'],
                              os.environ['AKI_NAME'],
                              os.environ['ARI_NAME'],
@@ -79,8 +79,13 @@ try:
                              os.environ['NEUCA_INI'], #userdata  
                              os.environ['UNIT_HOSTNAME_URL'])
     
-    LOG.info("Started instance: " + str(instance_uuid))
-    print instance_uuid
+    LOG.info("Started VM: " + str(vm.get_name()) )
+
+    
+
+    #LOG.info(str(vm.get_info_str()))
+
+    print vm.get_id()
     
 except VM_Broken_Unsshable as e:
     #LOG.error("nova-api-v2-start: VM_Unsshable: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))

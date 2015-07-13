@@ -115,6 +115,7 @@ class VM_Broken_Unsshable(VM_Broken):
         VM_Broken.__init__(self,message, vm_id, console_log)
 
 class VM:
+
     @classmethod
     def _get_console_log_by_ID(self, id):
         try:
@@ -562,30 +563,49 @@ class VM:
         if i >= retries:
             LOG.warning("Failed cmd  " + str(retries) + " times, giving up: " + str(cmd))
             return False
+        
+    def get_info_str(self):
+        info =  "id                             : " + str(self.nova_server.id)+ " \n"
+        info += "name                           : " + str(self.nova_server.name)+ " \n"
+        info += "addresses                      : " + str(self.nova_server.addresses)+ " \n"
+        info += "image                          : " + str(self.nova_server.image)+ " \n"
+        #info += "OS-EXT-STS:vm_state            : " + str(self.nova_server.OS-EXT-STS:vm_state)+ " \n"
+        #info += "OS-EXT-SRV-ATTR:instance_name  : " + str(self.nova_server.OS-EXT-SRV-ATTR:instance_name)+ " \n"
+        info += "flavor                         : " + str(self.nova_server.flavor)+ " \n"
+        info += "user_id                        : " + str(self.nova_server.user_id)+ " \n"
+        info += "status                         : " + str(self.nova_server.status)+ " \n"
+        info += "hostId                         : " + str(self.nova_server.hostId)+ " \n"
+        #info += "OS-EXT-SRV-ATTR:host           : " + str(self.nova_server.OS-EXT-SRV-ATTR:host)+ " \n"
+        #info += "OS-SRV-USG:terminated_at       : " + str(self.nova_server.OS-SRV-USG:terminated_at)+ " \n"
+        info += "key_name                       : " + str(self.nova_server.key_name)+ " \n"
+        info += "created                        : " + str(self.nova_server.created)+ " \n"
+        #info += "OS-SRV-USG:launched_at         : " + str(self.nova_server.OS-SRV-USG:launched_at) + " \n"
+        info += "metadata                       : " + str(self.nova_server.metadata) + " \n"
 
+        
+        return info
 
-    @classmethod
     def _start_vm(self, instance_type, ami, ssh_key, user_data_file, name):
         #Boot the vm
-        retries = 10
+        retries = 3
         timeout = 10
         status = None
         for i in range(retries):
             try:
                 #setup connection to nova
-                nova_client= client.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL']);
+                #nova_client= client.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=True);
                 
                 #find nova properties
-                flavor=nova_client.flavors.list()[3]
-                image=nova_client.images.list()[0]
+                flavor=self.nova_client.flavors.list()[3]
+                image=self.nova_client.images.list()[0]
 
                 network=[]
-                for n in nova_client.networks.list():
+                for n in self.nova_client.networks.list():
                     #print str(n.label) + ", " + str(n.id)
                     if n.label == "flat-data-net":
                         network.append({ 'net-id': n.id })
                         break
-                key=nova_client.keypairs.find(name="pruth")
+                key=self.nova_client.keypairs.find(name="pruth")
                 
                 #start vm
                 LOG.info('KEY: ' + str(key))
@@ -595,29 +615,35 @@ class VM:
                 LOG.info('FLAVOR: ' + str(flavor))
                 LOG.info('NICS: ' + str(network))
 
-                instance = nova_client.servers.create(name,image,flavor,nics=network,key_name='pruth',userdata=user_data_file)
+                self.nova_server = self.nova_client.servers.create(name,image,flavor,nics=network,key_name='pruth',userdata=user_data_file)
                 #instance = nova_client.servers.create(name,image,flavor,nics=network,key=key,userdata=user_data_file)
-                
-                instance_id = str(instance.id)
-                LOG.info("PRUTH: instance - ID = " + str(instance.id)  + ", name = " + str(instance.name)  + ", status = " + str(instance.status))
+              
+                LOG.info('**************   Printing server attributes ******************' )
+                LOG.info('dir\n: ' + str(dir(self.nova_server)))
+                LOG.info('dir\n: ' + str(self.nova_server.__dict__))
+                LOG.info('***************************************************************')
+                          
+  
+                instance_id = str(self.nova_server.id)
+                LOG.info("PRUTH: instance - ID = " + str(self.nova_server.id)  + ", name = " + str(self.nova_server.name)  + ", status = " + str(self.nova_server.status))
                          
                 status_check_retries=100
                 status_check_timeout=10
                 for j in range(status_check_retries):
-                    instance = nova_client.servers.get(instance_id)
+                    self.nova_server = self.nova_client.servers.get(self.nova_server.id)
 
-                    if str(instance.status) == 'ERROR':
-                       LOG.info('nova boot fail: ID = ' + str(instance.id)  + ', name = ' + str(instance.name)  + ',  status: ' + str(instance.status))
-                       instance.delete()
-                       raise Nova_Command_Fail, 'nova boot failed with VM error: ' +  + str(instance.id)  + ', name = ' + str(instance.name)  + ',  status: ' + str(instance.status)
-                    if str(instance.status) == 'ACTIVE':
-                       LOG.info('nova boot success:  ID = ' + str(instance.id)  + ', name = ' + str(instance.name)  + ', status: ' + str(instance.status))
-                       return str(instance.id)
-                    LOG.info('booting VM (status_check '+ str(j) + ') ID = ' + str(instance.id)  + ', name = ' + str(instance.name)  + ', status: ' + str(instance.status))
+                    if str(self.nova_server.status) == 'ERROR':
+                       LOG.info('nova boot fail: ID = ' + str(self.nova_server.id)  + ', name = ' + str(self.nova_server.name)  + ',  status: ' + str(self.nova_server.status))
+                       self.nova_server.delete()
+                       raise Nova_Command_Fail, 'nova boot failed with VM error: ' +  + str(self.nova_server.id)  + ', name = ' + str(self.nova_server.name)  + ',  status: ' + str(self.nova_server.status)
+                    if str(self.nova_server.status) == 'ACTIVE':
+                       LOG.info('nova boot success:  ID = ' + str(self.nova_server.id)  + ', name = ' + str(self.nova_server.name)  + ', status: ' + str(self.nova_server.status))
+                       return str(self.nova_server.id)
+                    LOG.info('booting VM (status_check '+ str(j) + ') ID = ' + str(self.nova_server.id)  + ', name = ' + str(self.nova_server.name)  + ', status: ' + str(self.nova_server.status))
                     time.sleep(status_check_timeout)
             
-                LOG.info('booting VM timeout, clean up and retry '+ str(i) + ') ID = ' + str(instance.id)  + ', name = ' + str(instance.name)  + ', status: ' + str(instance.status))
-                instance.delete()
+                LOG.info('booting VM timeout, clean up and retry '+ str(i) + ') ID = ' + str(self.nova_server.id)  + ', name = ' + str(self.nova_server.name)  + ', status: ' + str(self.nova_server.status))
+                self.nova_server.delete()
             
             except Exception as e:
                 LOG.info('booting VM exception (retry '+ str(i) + ') ' + str(name) + ', ' + str(e))
@@ -684,196 +710,89 @@ class VM:
             raise Nova_Command_Fail, "Failed to get ec2_name for image " + str(image_nova) + " : " + str(cmd) + ", rtncode: " + str(rtncode) +  ", data_stdout: " + str(data_stdout) + ", data_stderr: " + str(data_stderr)
                 
         return image_ec2
-        
-
-        
-        
-
-    @classmethod
-    def _start_vm_ec2(self, instance_type, ami, aki, ari, ssh_key, user_data_file, name):
-        LOG.debug("_start_vm_ec2:  " + str(name) )
-        #Boot the vm
-        timeout = 20
-        status = None
-        new_vm_id = None
-
-        try:
-            ami_ec2 = self._get_ec2_image_name(ami)
-            aki_ec2 = self._get_ec2_image_name(aki)
-            ari_ec2 = self._get_ec2_image_name(ari)
-        except Exception as e:
-            LOG.debug("something in _get_ec2_image_name failed " + str(e) )
-            raise Nova_Fatal_Command_Fail, "start_vm_ec2 fatal error: can not get ec2_image name" 
     
-        LOG.debug("ami_ec2 = " + ami_ec2 + ", aki_ec2 = " + aki_ec2 + ", ari_ec2 = " + ari_ec2)
-                                   
-        cmd = ["euca-run-instances",
-               "-n", "1",
-               "--addressing", "private",
-               "--kernel", str(aki_ec2),
-               "--ramdisk", str(ari_ec2),
-               "--instance-type", str(instance_type),
-               "-k", str(ssh_key),
-               #"-f", str(user_data_file),
-               str(ami_ec2) ]
-        rtncode,data_stdout,data_stderr = Commands.run(cmd, timeout=60*30)
-        if rtncode != 0:
-            LOG.warning("nova boot command with non-zero rtncode " + str(name) + ": " + str(cmd) +
-                        ", rtncode: " + str(rtncode) +
-                        ", data_stdout: " + str(data_stdout) +
-                        ", data_stderr: " + str(data_stderr))
-            
-            
-            #check for known fatal errros (i.e. errors that a retry will not help)
-            #InstanceTypeNotFoundByName
-            if data_stdout.find("InstanceTypeNotFoundByName") < 0:
-                raise Nova_Fatal_Command_Fail, "Fatal command fail: euca-run-instances: InstanceTypeNotFoundByName " + str(name) + " : " + str(data_stdout)
-            #QuotaError
-            if data_stdout.find("QuotaError") < 0:
-                raise Nova_Fatal_Command_Fail, "Fatal command fail: euca-run-instances: QuotaError " + str(name) + " : " + str(data_stdout)
-                    
-            raise Nova_Command_Fail, str(cmd)
-
-        LOG.debug("rtncode: " + str(rtncode) +
-                  ", data_stdout: " + str(data_stdout) +
-                  ", data_stderr: " + str(data_stderr) )
-
-        #parse name out of euca-run-instances stdout
-        tokens = data_stdout.split()
-        LOG.debug("tokens: " + str(tokens))
-        if len(tokens) < 8:
-            raise Nova_Command_Fail, "Parse euca-run-instances: len(tokens) <  8: " + str(name) + " : " + str(data_stdout)
-
-        #At this point euca-run-instance command is successful.  now test for vm success/failure 
-
-        assigned_name = tokens[7]
-        new_vm_id = self.get_ID_by_name(assigned_name)
-        LOG.debug("assigned_name: " + str(assigned_name) + ", new_vm_id" + str(new_vm_id))
-
-        #loop waiting for vm to become active.  This needs to be a long time to wait for glance to tranfer the image to the worker
-        for i in range(70):
-            try:
-                LOG.debug('ec2 boot getting status, try(' + str(i) + "): " + str(new_vm_id))
-                status = self.get_status_by_ID(new_vm_id).lower()
-                if status == 'active':
-                    LOG.info('ec2 boot success: ' + str(new_vm_id))
-                    break;
-                if status == 'error':
-                    break;
-            except Exception as e:
-                LOG.debug('ec2 boot getting status error, try(' + str(i) + "): " + str(new_vm_id) + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
-                pass
-
-            if i < 12:
-                time.sleep(10)
-            else:
-                time.sleep(60)
-
-        #if we retried too many time declare failure
-        if status != 'active':
-            try:
-                console_log = str(VM.get_console_log_by_ID(new_vm_id))
-            except Exception:
-                console_log = 'Cannot get console log'
-            self._clean_all(new_vm_id)
-            raise VM_Broken('Nova boot failed',new_vm_id,console_log)
-        
-        #return the uuid that nova uses (not the one ec2 uses)
-        return new_vm_id
-            
-
     @classmethod
     def start(self, instance_type, ami, aki, ari, ssh_key, startup_retries, ping_retries, ssh_retries, user_data_file, name):
-        LOG.debug("start " + str(name)) 
-        try:
-            new_vm_id = None
-            status = None
-            new_vm_id = self._start_vm(instance_type, ami, ssh_key, user_data_file, name)
-                
-            #status = self.get_status_by_ID(new_vm_id).lower()
-            #if status == 'active':
-            #    break
-        except Exception as e:
-            LOG.info("PRUTH: exception " + str(e))
-            #self._clean_all(new_vm_id)
-            #if i >= startup_retries:
-            raise e
-                    
-            
-        #floating_addr = None
-
-        #allocate floating ip
-        #floating_addr = self._allocate_floating_ip()
-        #if floating_addr == None:
-        #    raise Nova_Command_Fail, 'Nova Failed to allocate floating ip ' + str(new_vm_id)
-               
-        #assign floating ip
-        #self._assign_floating_ip(new_vm_id, floating_addr)
-
-        #ping test
-        #if self._ping_test_vm(floating_addr, ping_retries, 10):
-        #    LOG.info("VM " + new_vm_id + " is pingable on ip " + floating_addr)
-        #else:
-        #    try:
-        #        console_log = str(VM.get_console_log_by_ID(new_vm_id))
-        #    except Exception:
-        #        console_log = 'Cannot get console log'
-        #    self._clean_all(new_vm_id)    
-        #    raise VM_Broken_Unpingable('Instance is not pingable: ' + str(new_vm_id), new_vm_id, console_log)
-            
-        ##ssh test
-        #if self._ssh_test_vm(floating_addr, os.environ['EUCA_KEY_DIR']+"/"+str(ssh_key), "root", ssh_retries, 10):
-        #    LOG.info("VM " + new_vm_id + " is sshable on ip " + floating_addr)
-        #else:
-        #    try:
-        #        console_log = str(VM.get_console_log_by_ID(new_vm_id))
-        #    except Exception:
-        #        console_log = 'Cannot get console log'
-        #    self._clean_all(new_vm_id)
-        #    raise VM_Broken_Unsshable('Instance is not sshable: ' + str(new_vm_id), new_vm_id,console_log)
-
-        #return the new uuid
-        return new_vm_id
+        LOG.debug("start " + str(name))
+        self.nova_client= client.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=True);
+        new_vm = VM()
+        new_vm._start_vm(instance_type, ami, ssh_key, user_data_file, name)
+        return new_vm
 
     @classmethod
-    def stop(self,id):
-        LOG.debug("Stopping vm: " + id)
+    def getVM_by_id(self, id):
+        LOG.debug("getVM_by_id " + str(id))
+        self.nova_client= client.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=True);
+            
+        vm = VM(self.nova_client.servers.get(id))
         
-        try:
-                #setup connection to nova                                                                                                                                                                               
-                nova_client= client.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL']);
+        LOG.debug("getVM_by_name self.nova_server: " + str(vm))
+        return vm 
 
-                #start vm                                                                                                                                                                                               
-                instance = nova_client.servers.get(id)
-                
-                LOG.info("PRUTH: instance - ID = " + str(instance.id)  + ", name = " + str(instance.name)  + ", status = " + str(instance.status))
-                instance.delete()
+    def __init__(self, nova_server=None):
+        LOG.debug("creating new VM object ") 
+        self.nova_server = nova_server
+
+    def stop(self):
+        LOG.debug("Stopping vm: " + self.nova_server.id)
+        try:
+            #setup connection to nova                                                                                                                                                                 #nova_client= client.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL']);
+
+            #start vm                                                                                                                                                                                 #instance = nova_client.servers.get(id)
+            
+            LOG.info("PRUTH: instance - ID = " + str(self.nova_server.id)  + ", name = " + str(self.nova_server.name)  + ", status = " + str(self.nova_server.status))
+            self.nova_server.delete()
         except:
-            exception_msg += ", Failed cleaning up vm (" + str(id) + ")"
+            exception_msg += ", Failed cleaning up vm (" + str(self.nova_server.id) + ")"
 
         return
 
-    @classmethod
-    def get_host(self, id):
-        return self.get_host_by_ID(id)
+    def get_id(self):
+        return self.nova_server.id
+
+    def get_host(self):
+        return self.nova_server.hostId
+
+    def get_name(self):
+        return self.nova_server.name
+
+    def get_addresses(self):
+        return self.nova_server.addresses
+
+    def get_image(self):
+        return self.nova_server.image
+
+    def get_flavor(self):
+        return self.nova_server.flavor
+
+    def get_status(self):
+        return self.nova_server.status
+
+    def get_key_name(self):
+        return self.nova_server.key_name
+
+    def get_created_date(self):
+        return self.nova_server.created
     
     @classmethod
     def get_ip(self, id):
         LOG.debug("Get ip for vm: " + id)
+        return "GET IP NOT IMPLEMENTED"
+
         ip=""
         try:
                 #setup connection to nova 
                 nova_client= client.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL']);
 
                 #start vm 
-                instance = nova_client.servers.get(id)
+                self.nova_server = nova_client.servers.get(id)
 
-                LOG.info("PRUTH: instance - ID = " + str(instance.id)  + ", name = " + str(instance.name)  + ", status = " + str(instance.status) + ", interface_list = " + str(instance.networks) )
-                ip = instance.networks['flat-data-net'][0]
+                LOG.info("PRUTH: instance - ID = " + str(self.nova_server.id)  + ", name = " + str(self.nova_server.name)  + ", status = " + str(self.nova_server.status) + ", interface_list = " + str(self.nova_server.networks) )
+                ip = self.nova_server.networks['flat-data-net'][0]
         except:
-            LOG.error("Failed to get ip for instance " + str(instance.id)) 
+            LOG.error("Failed to get ip for self.nova_server " + str(self.nova_server.id)) 
              
-        LOG.info("PRUTH: instance - ID = " + str(instance.id)  + ", returning ip: " + str(ip))
+        LOG.info("PRUTH: instance - ID = " + str(self.nova_server.id)  + ", returning ip: " + str(ip))
         return ip
 
     
