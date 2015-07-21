@@ -201,6 +201,8 @@
                                                 <loadfile property="neuca.ini" srcFile="${neuca.ini.file}" />
                                                 <echo message="neuca.ini: ${neuca.ini}" />
 
+						<!-- test writing to comet -->
+						<ec2.comet.write sliceid="mysliceid" reservationid="myreservationid" key="mykey" value="myvalue" />
 					  
 						<!-- see if the controller specified instance type or use site default -->
 						<if>
@@ -214,7 +216,7 @@
 								<echo message="User did not specify instance type, using default ${ec2.instance.type}" />
 							</else>
 						</if>
-                       <echo message="creating Euca instance ${unit.hostname.url} using emi ${ec2.ami.name} ...(may take some time)" />
+						<echo message="creating Euca instance ${unit.hostname.url} using emi ${ec2.ami.name} ...(may take some time)" />
 						<var name="create.instance.output" unset="true" />
 						<var name="code" unset="true" />
 						<var name="message" unset="true" />
