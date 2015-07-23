@@ -83,7 +83,9 @@ try:
 
     LOG.info("Success starting VM: " + str(vm.get_name()) )
 
-    #LOG.info(str(vm.get_info_str()))
+    #time.sleep(60);
+
+    LOG.info(str(vm.get_info_str()))
 
     print vm.get_id()
     

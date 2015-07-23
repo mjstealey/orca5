@@ -16,7 +16,7 @@ import orca.shirako.plugins.config.OrcaAntTask;
 
 import org.apache.tools.ant.BuildException;
 
-import orca.comet.accuClient;
+//import orca.comet.accuClient;
 
 public class CometWriteTask extends OrcaAntTask{
     protected String sliceid;

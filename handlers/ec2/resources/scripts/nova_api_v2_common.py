@@ -117,24 +117,29 @@ class VM_Broken_Unsshable(VM_Broken):
 class VM:
 
     def get_info_str(self):
-        info =  "id                             : " + str(self.nova_server.id)+ " \n"
-        info += "name                           : " + str(self.nova_server.name)+ " \n"
-        info += "addresses                      : " + str(self.nova_server.addresses)+ " \n"
-        info += "image                          : " + str(self.nova_server.image)+ " \n"
-        #info += "OS-EXT-STS:vm_state            : " + str(self.nova_server.OS-EXT-STS:vm_state)+ " \n"
-        #info += "OS-EXT-SRV-ATTR:instance_name  : " + str(self.nova_server.OS-EXT-SRV-ATTR:instance_name)+ " \n"
-        info += "flavor                         : " + str(self.nova_server.flavor)+ " \n"
-        info += "user_id                        : " + str(self.nova_server.user_id)+ " \n"
-        info += "status                         : " + str(self.nova_server.status)+ " \n"
-        info += "hostId                         : " + str(self.nova_server.hostId)+ " \n"
-        #info += "OS-EXT-SRV-ATTR:host           : " + str(self.nova_server.OS-EXT-SRV-ATTR:host)+ " \n"
-        #info += "OS-SRV-USG:terminated_at       : " + str(self.nova_server.OS-SRV-USG:terminated_at)+ " \n"
-        info += "key_name                       : " + str(self.nova_server.key_name)+ " \n"
-        info += "created                        : " + str(self.nova_server.created)+ " \n"
-        #info += "OS-SRV-USG:launched_at         : " + str(self.nova_server.OS-SRV-USG:launched_at) + " \n"
-        info += "metadata                       : " + str(self.nova_server.metadata) + " \n"
+        info=""
+        try:
+            info += "id                             : " + str(self.nova_server.id)+ " \n"
+            info += "name                           : " + str(self.nova_server.name)+ " \n"
+            info += "addresses                      : " + str(self.nova_server.addresses)+ " \n"
+            info += "image                          : " + str(self.nova_server.image)+ " \n"
+            info += "flavor                         : " + str(self.nova_server.flavor)+ " \n"
+            info += "user_id                        : " + str(self.nova_server.user_id)+ " \n"
+            info += "status                         : " + str(self.nova_server.status)+ " \n"
+            info += "hostId                         : " + str(self.nova_server.hostId)+ " \n"
+            info += "key_name                       : " + str(self.nova_server.key_name)+ " \n"
+            info += "created                        : " + str(self.nova_server.created)+ " \n"
+            info += "metadata                       : " + str(self.nova_server.metadata) + " \n"
+            info += "OS-EXT-SRV-ATTR:host           : " + str(getattr(self.nova_server, 'OS-EXT-SRV-ATTR:host')) + " \n"
+            info += "OS-EXT-SRV-ATTR:instance_name  : " + str(getattr(self.nova_server, 'OS-EXT-SRV-ATTR:instance_name')) + " \n"
+            info += "OS-EXT-STS:vm_state            : " + str(getattr(self.nova_server, 'OS-EXT-STS:vm_state')) + " \n"
+            info += "OS-SRV-USG:terminated_at       : " + str(getattr(self.nova_server, 'OS-SRV-USG:terminated_at')) + " \n"
+            info += "OS-SRV-USG:launched_at         : " + str(getattr(self.nova_server, 'OS-SRV-USG:launched_at')) + " \n"
+            for net in self.nova_server.addresses:
+                info += "IP (self.nova_server.addresses[str(net)][0]['addr']   : " + str(self.nova_server.addresses[str(net)][0]['addr']) + " \n"
+        except Exception as e:
+                LOG.info('get_info_str exception: ' + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()));
 
-        
         return info
 
     def _start_vm(self, tenant_id, instance_type, ami, ssh_key, user_data_file, name):
@@ -148,7 +153,7 @@ class VM:
                 #nova_client= client.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=True);
                 
                 #find nova properties
-                flavor=self.nova_client.flavors.list()[3]
+                flavor=self.nova_client.flavors.list()[6]
                 image=self.nova_client.images.list()[0]
 
                 network=[]
