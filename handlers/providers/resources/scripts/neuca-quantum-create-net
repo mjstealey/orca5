@@ -53,7 +53,9 @@ for i in os.environ:
     LOG.debug(str(i) + ": " + str(os.environ[i]) )
 
 try:
-    #DO THE WORK                                                                                                                                                                                       
+    #DO THE WORK                                                                                                                                                                                      
+    
+ 
     try:
         max_rate   = str(int(os.environ['QUANTUM_MAX_RATE'])/1000)
         burst_rate = str(int(os.environ['QUANTUM_BURST_RATE'])/1000)
@@ -61,12 +63,14 @@ try:
         max_rate = None
         burst_rate = None
 
-    network_uuid = NEuca_Quantum_Network.create_network(os.environ['QUANTUM_TENANT_ID'],
-                                                        os.environ['QUANTUM_NET_TYPE'],
-                                                        os.environ['QUANTUM_NET_NETWORK'],
-                                                        os.environ['QUANTUM_NET_VLAN'],
-                                                        max_rate,
-                                                        burst_rate)    
+    #network_uuid = NEuca_Quantum_Network.create_network(os.environ['QUANTUM_TENANT_ID'],
+    #                                                    os.environ['QUANTUM_NET_TYPE'],
+    #                                                    os.environ['QUANTUM_NET_NETWORK'],
+    #                                                    os.environ['QUANTUM_NET_VLAN'],
+    #                                                    max_rate,
+    #                                                    burst_rate)
+        
+    network_uuid="123456"
     print network_uuid
     
 except Exception as e:

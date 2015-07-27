@@ -153,7 +153,8 @@ class VM:
                 #nova_client= client.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=True);
                 
                 #find nova properties
-                flavor=self.nova_client.flavors.list()[6]
+                #flavor=self.nova_client.flavors.list()[6]
+                flavor=self.nova_client.flavors.list()[1]
                 image=self.nova_client.images.list()[0]
 
                 network=[]

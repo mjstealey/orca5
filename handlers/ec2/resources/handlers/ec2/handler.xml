@@ -201,9 +201,6 @@
                                                 <loadfile property="neuca.ini" srcFile="${neuca.ini.file}" />
                                                 <echo message="neuca.ini: ${neuca.ini}" />
 
-						<!-- test writing to comet -->
-						<!-- <ec2.comet.write sliceid="mysliceid" reservationid="myreservationid" key="mykey" value="myvalue" /> -->
-					  
 						<!-- see if the controller specified instance type or use site default -->
 						<if>
 							<isset property="unit.ec2.instance.type" />
@@ -482,7 +479,12 @@
 									</then>
 								</if>
 	
-	
+								 <!-- test writing to comet -->
+                                                                 <!-- <ec2.comet.writeall sliceid="mysliceid" reservationid="myreservationid" key="mykey" value="myvalue" /> -->
+                                                                 <ec2.comet.writeall />
+
+						
+
 								<!-- delete the userdata file -->
 								<delete file="${neuca.ini.file}" />
 	
