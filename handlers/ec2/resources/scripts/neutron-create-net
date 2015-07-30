@@ -1,0 +1,85 @@
+#!/usr/bin/env python                                                                                                                                                                                  
+import os
+import sys
+import logging as LOG
+import logging.handlers
+import traceback
+
+sys.path.append(os.environ['PROVIDER_DIR'] + "/scripts")
+
+from neutron_common import *
+
+try:
+    sys.path.append(os.environ['PROVIDER_DIR'] + "/scripts")
+    from neutron_common import *
+except:
+    print 'Error in neutron-create-net: cannot import neutron_common.py'
+    sys.exit(1)
+
+try:
+    #OPEN THE LOG                                                                                                                                                                                      
+    LOG.basicConfig(level=LOG.DEBUG, filename='/dev/null')
+
+    if not os.path.exists(os.environ['PROVIDER_LOG_DIR']):
+        os.makedirs(os.environ['PROVIDER_LOG_DIR'])
+
+    handler = LOG.handlers.RotatingFileHandler(os.environ['PROVIDER_LOG_DIR'] + '/' + os.environ['PROVIDER_LOG_FILE'], backupCount=10, maxBytes=50000000)
+
+    if os.environ['PROVIDER_LOG_LEVEL'].lower() == 'debug':
+        handler.setLevel(logging.DEBUG)
+    elif os.environ['PROVIDER_LOG_LEVEL'].lower() == 'error':
+        handler.setLevel(logging.ERROR)
+    elif os.environ['PROVIDER_LOG_LEVEL'].lower() == 'info':
+        handler.setLevel(logging.INFO)
+    else:
+        handler.setLevel(logging.DEBUG)
+
+    formatter = logging.Formatter('%(asctime)s -- neutron-create-net %(process)d %(levelname)s : %(message)s')
+    handler.setFormatter(formatter)
+
+    LOG.getLogger('').addHandler(handler)
+
+    LOG.info('Starting Logger for Neutron')
+
+except Exception as e:
+    print 'Error in neutron-create-net: Cannot open log file'
+    print type(e)
+    print e.args
+    print e
+    sys.exit(1)
+
+#log the environment                                                                                                                                                                                   
+for i in os.environ:
+    LOG.debug(str(i) + ": " + str(os.environ[i]) )
+
+try:
+    #DO THE WORK    
+    LOG.debug("Starting the work")
+
+    LOG.debug("NEUTRON_TENANT_ID: " + str(os.environ['NEUTRON_TENANT_ID']))
+    LOG.debug("NEUTRON_NET_NETWORK: " + str(os.environ['NEUTRON_NET_NETWORK']))
+    LOG.debug("NEUTRON_NET_NAME: " + str(os.environ['NEUTRON_NET_NAME']))
+    LOG.debug("NEUTRON_USERNAME " + str(os.environ['NEUTRON_USERNAME'])) 
+    LOG.debug("NEUTRON_PASSWORD " + str(os.environ['NEUTRON_PASSWORD'])) 
+    LOG.debug("NEUTRON_AUTH_URL " + str(os.environ['NEUTRON_AUTH_URL']))
+    LOG.debug("NEUTRON_TENANT_ID " + str(os.environ['NEUTRON_TENANT_ID']))
+
+    LOG.debug("About to do the work")
+
+    network = Neutron_Network.create(os.environ['NEUTRON_TENANT_ID'],
+                             os.environ['NEUTRON_NET_NETWORK'],
+                             os.environ['NEUTRON_NET_NAME'] )
+    LOG.debug("Done doing the work")
+
+    network_uuid = network.getUUID()
+  
+    LOG.debug("network_uuid: " + str(network_uuid))
+    
+    print network_uuid
+    
+except Exception as e:
+    LOG.error("neutron-create-net: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
+    sys.exit(1)
+
+sys.exit(0)
+
