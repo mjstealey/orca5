@@ -14,7 +14,8 @@ from os import kill
 from signal import alarm, signal, SIGALRM, SIGKILL
 from subprocess import PIPE, Popen
 
-from novaclient import client
+from novaclient import client as novaclient
+from neutronclient.neutron import client as neutronclient
 
 class Commands:
     @classmethod
@@ -159,7 +160,7 @@ class VM:
 
                 network=[]
                 for n in self.nova_client.networks.list():
-                    #print str(n.label) + ", " + str(n.id)
+                    LOG.debug('Network: ' +  str(n.label) + ", " + str(n.id))
                     if n.label == "flat-data-net":
                         network.append({ 'net-id': n.id })
                         break
@@ -232,19 +233,19 @@ class VM:
     @classmethod
     def start(self, tenant_id, instance_type, ami, aki, ari, ssh_key, startup_retries, ping_retries, ssh_retries, user_data_file, name):
         LOG.debug("start " + str(name))
-        self.nova_client= client.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=True);
+        self.nova_client= novaclient.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=True);
         new_vm = VM()
         new_vm._start_vm(tenant_id, instance_type, ami, ssh_key, user_data_file, name)
         return new_vm
 
     @classmethod
-    def getVM_by_id(self, id):
-        LOG.debug("getVM_by_id " + str(id))
-        self.nova_client= client.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=True);
-            
+    def get_vm(self, id):
+        LOG.debug("get_vm " + str(id))
+        self.nova_client= novaclient.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=True)
+                              
         vm = VM(self.nova_client.servers.get(id))
         
-        LOG.debug("getVM_by_name self.nova_server: " + str(vm))
+        LOG.debug("get_vm: " + str(vm))
         return vm 
 
     def __init__(self, nova_server=None):
@@ -264,6 +265,60 @@ class VM:
             exception_msg += ", Failed cleaning up vm (" + str(self.nova_server.id) + ")"
 
         return
+
+    def _get_network_id_from_network_name(self, network_name):
+        neutron_client = neutronclient.Client('2.0', 
+                                               username=os.environ['OS_USERNAME'], 
+                                               password=os.environ['OS_PASSWORD'], 
+                                               auth_url=os.environ['OS_AUTH_URL'], 
+                                               tenant_name=os.environ['OS_TENANT_NAME'],
+                                               connection_pool=True)
+
+        networks = neutron_client.list_networks()
+
+        for net in networks['networks']:
+            if net['name'] == network_name:
+                return net['id']
+
+        return "netork_not_found"
+
+
+    def add_iface(self, tenant, network, mac):
+        LOG.info("PRUTH: add_iface not implemented")
+        LOG.debug("add_iface: tenant " + tenant + ", network " + network + ", mac " + mac)
+
+        try:
+            #neutron_client = neutronclient.Client('2.0',
+            #                                      username=os.environ['OS_USERNAME'],
+            #                                      password=os.environ['OS_PASSWORD'],
+            #                                      auth_url=os.environ['OS_AUTH_URL'],
+            #                                      tenant_name=os.environ['OS_TENANT_NAME'],
+            #                                      connection_pool=True)
+            
+            network_id = self._get_network_id_from_network_name('net-'+network)
+            
+            #port = {'network_id': str(network_id) ,'admin_state_up': True}
+            #port = neutron_client.create_port({'port':  port})
+
+            
+            #LOG.debug("Network = " + str(network) + ", network_id = " + str(network_id))
+            #LOG.debug("port = " + str(port))
+
+
+            LOG.info("PRUTH: server:  id = " + str(self.nova_server.id)  + ", name = " + str(self.nova_server.name)  + ", status = " + str(self.nova_server.status))
+                        
+            #interface_attach(self, port_id, net_id, fixed_ip)
+            self.nova_server.interface_attach(net_id=network_id, port_id=None, fixed_ip=None)
+            #self.nova_server.interface_attach(port_id=port['port']['id'],net_id=None,fixed_ip=None)
+        except Exception as e:
+            LOG.debug("Failed add_iface (" + str(self.nova_server.id)  + ")")
+            LOG.error("neutron-add-iface: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
+
+    def del_iface(self):
+        #interface_detach(self, port_id)
+        #interface_list(self):
+
+        LOG.info("PRUTH: del_iface not implemented")
 
     def get_id(self):
         return self.nova_server.id
@@ -299,7 +354,7 @@ class VM:
         ip=""
         try:
                 #setup connection to nova 
-                nova_client= client.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL']);
+                nova_client= novaclient.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL']);
 
                 #start vm 
                 self.nova_server = nova_client.servers.get(id)

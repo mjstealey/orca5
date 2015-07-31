@@ -65,7 +65,7 @@ try:
         instance_id=str(sys.argv[1])
         
         LOG.debug("nova-api-v2-stop: instance_id =" + str(instance_id))
-        vm = VM.getVM_by_id(instance_id)
+        vm = VM.get_vm(instance_id)
     
         vm.stop()
         LOG.info("Stopped instance: " + str(instance_id))

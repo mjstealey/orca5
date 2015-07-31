@@ -55,15 +55,11 @@ for i in os.environ:
 try:
     #DO THE WORK                                                                                                                                                                                       
     LOG.debug("neutron-delete-net: " + str(sys.argv))
-    try:
-        max_rate   = os.environ['QUANTUM_MAX_RATE']
-        burst_rate = os.environ['QUANTUM_BURST_RATE']
-    except:
-        max_rate = None
-        burst_rate = None
-
-    NEuca_Quantum_Network.delete_network(os.environ['NEUTRON_NET_UUID'])
+    
+    network = Neutron_Network.get(os.environ['NEUTRON_NET_NAME'])
  
+    network.delete()
+
     print 'OK'
 
 except Exception as e:

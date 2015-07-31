@@ -58,7 +58,7 @@ try:
 
     vm = VM.get_vm(os.environ['NOVA_INSTANCE_ID'])
     iface_uuid = vm.add_iface(os.environ['NEUTRON_TENANT_ID'],
-                              os.environ['NEUTRON_NET_UUID'],
+                              os.environ['NEUTRON_NET_NAME'],
                               os.environ['NEUTRON_NET_IFACE_MAC'])
 
     print iface_uuid

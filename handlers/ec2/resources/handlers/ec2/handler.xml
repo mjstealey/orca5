@@ -411,7 +411,7 @@
 
 								<!-- if neuca-quantum, add interfaces -->
 								<if>
-									<equals arg1="${cloud.type}" arg2="nova-essex" />
+									<equals arg1="${cloud.type}" arg2="nova-api-v2" />
 									<then>
 										<echo message="iface list: ${iface.list}" />
 										<var name="instance.quantum.ifaces" unset="true" />
@@ -445,18 +445,17 @@
 												<echo message="QUANTUM_NET_NETWORK ${iface.net.name}" />
 												<echo message="QUANTUM_NET_VLAN ${iface.net.vlan}" />
 
-												<exec executable="${ec2.scripts}/neuca-quantum-add-iface" resultproperty="code" outputproperty="add.iface.output">
+												<exec executable="${ec2.scripts}/neutron-add-iface" resultproperty="code" outputproperty="add.iface.output">
 													<env key="EC2_HOME" value="${ec2.home}" />
 													<env key="EC2_DIR" value="${ec2.dir}" />
 													<env key="EUCA_KEY_DIR" value="${ec2.keys}" />
 													<env key="EC2_LOG_DIR" value="${ec2.log.dir}" />
 													<env key="EC2_LOG_FILE" value="${ec2.log.file}" />
 													<env key="EC2_LOG_LEVEL" value="${ec2.log.level}" />
-													<env key="QUANTUM_TENANT_ID" value="${quantum.tenant.id}" />
-													<env key="QUANTUM_NET_INSTANCE_NAME" value="${shirako.save.unit.ec2.instance}" />
-													<env key="QUANTUM_NET_IFACE_MAC" value="${iface.mac}" />
-													<env key="QUANTUM_NET_NETWORK" value="${iface.net.name}" />
-													<env key="QUANTUM_NET_VLAN" value="${iface.net.vlan}" />
+													<env key="NEUTRON_TENANT_ID" value="${quantum.tenant.id}" />
+													<env key="NOVA_INSTANCE_ID" value="${shirako.save.unit.ec2.instance}" />
+													<env key="NEUTRON_NET_IFACE_MAC" value="${iface.mac}" />
+													<env key="NEUTRON_NET_NAME" value="${iface.net.vlan}" />
 												</exec>
 												<echo>result code: ${code}</echo>
 												<echo>output: ${add.iface.output}</echo>

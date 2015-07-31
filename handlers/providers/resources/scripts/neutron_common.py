@@ -81,11 +81,15 @@ class NEuca_Quantum_Port_Plugged_In_Exception(Exception):
     pass
 
 class Neutron_Network:
-    
-
+    @classmethod
+    def get(self,net_name):
+        LOG.debug("Neutron_Network.get_net: net_name " + net_name)
+        new_net = Neutron_Network()
+        new_net.load_network(net_name)
+        return new_net
+       
     @classmethod
     def create(self, tenant_id, network, net_name):
-        LOG.debug("Neutron_Network.create is not defined")
         LOG.debug("Neutron_Network.create: tenant_id " + str(tenant_id) + ", network " + str(network) + ", net_name " + str(net_name))
         LOG.debug("Neutron_Network.create: username " + os.environ['NEUTRON_USERNAME'] + ", password " + os.environ['NEUTRON_PASSWORD'] + ", tenant_name " + os.environ['NEUTRON_AUTH_URL'] + ", auth_url " + os.environ['NEUTRON_TENANT_ID'])
         #neutron_client = client.Client('2.0', username=os.environ['NEUTRON_USERNAME'], password=os.environ['NEUTRON_PASSWORD'], tenant_name=os.environ['NEUTRON_AUTH_URL'], auth_url=os.environ['NEUTRON_TENANT_ID'],connection_pool=True);
@@ -99,12 +103,60 @@ class Neutron_Network:
         LOG.debug("Neutron_Network.getUUID is not defined")
         return '123456'
 
+    @classmethod
+    def get_network_id_from_network_name(network_name):
+        neutron_client = client.Client('2.0',
+                                       username=os.environ['NEUTRON_USERNAME'],
+                                       password=os.environ['NEUTRON_PASSWORD'],
+                                       auth_url=os.environ['NEUTRON_AUTH_URL'],
+                                       tenant_name=os.environ['NEUTRON_TENANT_ID'],
+                                       connection_pool=True);
+
+
+        networks = neutron.list_networks()
+
+        for net in networks['networks']:
+            if net['name'] == network_name:
+                return net['id']
+
+        return "id_not_found"
+    
+    
+    def get_network_from_network_name(self, network_name):
+        neutron_client = client.Client('2.0',
+                                       username=os.environ['NEUTRON_USERNAME'],
+                                       password=os.environ['NEUTRON_PASSWORD'],
+                                       auth_url=os.environ['NEUTRON_AUTH_URL'],
+                                       tenant_name=os.environ['NEUTRON_TENANT_ID'],
+                                       connection_pool=True);
+
+
+        networks = neutron_client.list_networks()
+
+        for net in networks['networks']:
+            if net['name'] == network_name:
+                return net
+
+        return "network_not_found"
+
+
+    def load_network(self, net_name):
+        self.network = self.get_network_from_network_name("net-"+net_name)
+        
+        LOG.debug("self.network = " + str(self.network))
+
+        return self.network['id']
 
     def create_network(self, tenant_id, network, net_name ):
         #name ='vlan:data:101:11111:1111'
         name = str(tenant_id) + ":" + str(network) + ":" + str(net_name)
 
-        neutron_client = client.Client('2.0', username=os.environ['NEUTRON_USERNAME'], password=os.environ['NEUTRON_PASSWORD'], auth_url=os.environ['NEUTRON_AUTH_URL'], tenant_name=os.environ['NEUTRON_TENANT_ID'],connection_pool=True);
+        neutron_client = client.Client('2.0', 
+                                       username=os.environ['NEUTRON_USERNAME'], 
+                                       password=os.environ['NEUTRON_PASSWORD'], 
+                                       auth_url=os.environ['NEUTRON_AUTH_URL'], 
+                                       tenant_name=os.environ['NEUTRON_TENANT_ID'],
+                                       connection_pool=True);
 
         #neutron net-create data-net2
         network = {'name': 'net-'+str(net_name), 'admin_state_up': True}
@@ -113,26 +165,42 @@ class Neutron_Network:
         LOG.debug("Network = " + str(network))
         
         #neutron subnet-create data-net2  --name data-subnet2 172.16.0.0/24
-        subnet = {'name': 'subnet-'+str(net_name), 'network_id': network['network']['id'],'cidr': '0.0.0.0/1', 'ip_version': 4}
+        subnet = {'name': 'subnet-'+str(net_name), 'network_id': network['network']['id'],'cidr': '192.168.250.0/24', 'ip_version': 4}
         subnet = neutron_client.create_subnet({'subnet':subnet})
 
         LOG.debug("Subnet = " + str(subnet))
         
-        
+        self.network = network
+
         return network['network']['id']
 
 
-    @classmethod
-    def delete_network(self, tenant_id, network_uuid):
+    def delete(self):
         #name ='vlan:data:101:11111:1111'                                                                                                                                                                   
-        name = str(tenant_id) + ":" + str(network) + ":" + str(net_name)
+        #name = str(tenant_id) + ":" + str(network) + ":" + str(net_name)
 
         neutron_client = client.Client('2.0', username=os.environ['NEUTRON_USERNAME'], password=os.environ['NEUTRON_PASSWORD'], auth_url=os.environ['NEUTRON_AUTH_URL'], tenant_name=os.environ['NEUTRON_TENANT_ID'],connection_pool=True);
 
-        #network = {'name': 'net-'+str(net_name), 'admin_state_up': True}
-        network = neutron_client.delete_network(network_uuid)
+        LOG.debug('self.network : ' + str(self.network)) 
+        
+        #delete all ports on network
+        ports = neutron_client.list_ports()
+        for port in ports['ports']:
+            if str(port['network_id']) == str(self.network['id']):
+                LOG.debug('port = ' + str(port['id']) + ', network_id = ' + str(port['network_id']) + ' ::: DELETE THIS PORT')
+                try:
+                    neutron_client.delete_port(port['id'])
+                except:
+                     LOG.debug('Failed deleting port: Port not found.  Probably deleted by ec2 handler');
+            else:
+                LOG.debug('port = ' + str(port['id']) + ', network_id = ' + str(port['network_id']))
+            
+        #LOG.debug('ports: ' + str(ports))
+        
+        #delete network
+        network = neutron_client.delete_network(self.network['id'])
 
-        LOG.debug("Network = " + str(network_uuid))
+        #LOG.debug("Network = " + str(network_uuid))
 
         
         return 'done deleting network'

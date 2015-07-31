@@ -198,11 +198,17 @@ in a *hybrid* or OF only rack switch /ib -->
 						<var name="code" unset="true" />
 						<var name="message" unset="true" />
 						<exec executable="${provider.scripts}/neutron-delete-net" resultproperty="code" outputproperty="create.network.output">
-							<env key="PROVIDER_DIR" value="${provider.dir}" />
+						        <env key="PROVIDER_DIR" value="${provider.dir}" />
 							<env key="PROVIDER_LOG_DIR" value="${provider.log.dir}" />
 							<env key="PROVIDER_LOG_FILE" value="${provider.log.file}" />
 							<env key="PROVIDER_LOG_LEVEL" value="${provider.log.level}" />
-							<env key="NEUTRON_NET_UUID" value="${unit.quantum.net.uuid}" />
+							<env key="NEUTRON_USERNAME" value="${neutron.username}" />
+                                                        <env key="NEUTRON_PASSWORD" value="${neutron.password}" />
+                                                        <env key="NEUTRON_AUTH_URL" value="${neutron.authurl}" />
+                                                        <env key="NEUTRON_TENANT_ID" value="${neutron.tenant.id}" />
+                                                        <env key="NEUTRON_NET_NETWORK" value="${unit.quantum.netname}" /> <!-- typically data or storage -->
+                                                        <env key="NEUTRON_NET_NAME" value="${unit.vlan.tag}" />  <!-- name to use in neutron -->
+
 						</exec>
 						<echo message="exit code ${code}, ${create.network.output}" />
 						<if>
