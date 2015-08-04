@@ -7,13 +7,13 @@ import traceback
 
 sys.path.append(os.environ['EC2_DIR'] + "/scripts")
 
-from nova_essex_common import *
+from nova_api_v2_common import *
 
 try:
     sys.path.append(os.environ['EC2_DIR'] + "/scripts")
-    from nova_essex_common import *
+    from nova_api_v2_common import *
 except:
-    print 'Error in nova-essex-get-host: cannot import nova_essex_common.py'
+    print 'Error in nova-api-v2-get-host: cannot import nova_apt_v2_common.py'
     sys.exit(1)
 
 try:
@@ -42,7 +42,7 @@ try:
     LOG.info('Starting Logger')
 
 except Exception as e:
-    print 'Error in nova-essex-get-host: Cannot open log file'
+    print 'Error in nova-api-v2-get-host: Cannot open log file'
     print type(e)
     print e.args
     print e
@@ -54,17 +54,18 @@ except Exception as e:
 
 try:
     #DO THE WORK                                                                                                                                                                                       
-    LOG.debug("nova-essex-get-host: " + str(sys.argv))
+    LOG.debug("nova-api-v2-get-host: " + str(sys.argv))
 
-    instance_uuid = sys.argv[1]
+    instance_id = sys.argv[1]
 
-    instance_host = VM.get_host(instance_uuid)
-
-    LOG.info("Got host for instance: " + str(instance_uuid) + ": " + str(instance_host))
+    vm = VM.get_vm(instance_id)
+    instance_host = vm.get_host_name()
+    
+    LOG.info("Got host for instance: " + str(instance_id) + ": " + str(instance_host))
     print instance_host
 
 except Exception as e:
-    LOG.error("nova-essex-get-host: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
+    LOG.error("nova-api-v2-get-host: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
     sys.exit(1)
 
 sys.exit(0)

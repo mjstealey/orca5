@@ -165,7 +165,7 @@ class Neutron_Network:
         LOG.debug("Network = " + str(network))
         
         #neutron subnet-create data-net2  --name data-subnet2 172.16.0.0/24
-        subnet = {'name': 'subnet-'+str(net_name), 'network_id': network['network']['id'],'cidr': '192.168.250.0/24', 'ip_version': 4}
+        subnet = {'name': 'subnet-'+str(net_name), 'network_id': network['network']['id'],'cidr': '0.0.0.0/1', 'ip_version': 4}
         subnet = neutron_client.create_subnet({'subnet':subnet})
 
         LOG.debug("Subnet = " + str(subnet))

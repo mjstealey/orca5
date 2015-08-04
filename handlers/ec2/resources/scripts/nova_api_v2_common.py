@@ -155,8 +155,27 @@ class VM:
                 
                 #find nova properties
                 #flavor=self.nova_client.flavors.list()[6]
-                flavor=self.nova_client.flavors.list()[1]
-                image=self.nova_client.images.list()[0]
+                #flavor=self.nova_client.flavors.list()[1]
+                LOG.debug('instance_type = ' + str(instance_type))
+                flavor=None
+                for i in self.nova_client.flavors.list():
+                    #LOG.debug('Checking image: ' + str(i))
+                    if i.name == instance_type:
+                        flavor = i
+                        break
+                LOG.debug('Found flavor: ' + str(flavor.name))
+                
+
+                #image=self.nova_client.images.list()[0]
+                LOG.debug('ami = ' + str(ami))
+                image=None
+                for i in self.nova_client.images.list():
+                    #LOG.debug('Checking image: ' + str(i))
+                    if i.name == ami:
+                        image = i
+                        break
+                LOG.debug('Found image: ' + str(image.name))
+                    
 
                 network=[]
                 for n in self.nova_client.networks.list():
@@ -323,8 +342,11 @@ class VM:
     def get_id(self):
         return self.nova_server.id
 
-    def get_host(self):
+    def get_host_id(self):
         return self.nova_server.hostId
+
+    def get_host_name(self):
+        return str(getattr(self.nova_server, 'OS-EXT-SRV-ATTR:host'))
 
     def get_name(self):
         return self.nova_server.name

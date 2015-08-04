@@ -263,7 +263,7 @@
 							<env key="EC2_TENANT_ID" value="${ec2.tenant.id}" />
 							<env key="EC2_REQUEST_TIMEOUT" value="${ec2.request.timeout}" />
 						</exec>
-						<echo message="after create instance: exit code ${code}, ${create.instance.output}" />
+						<echo message="afer create instance: exit code ${code}, ${create.instance.output}" />
 
 						<if>
 							<not>
@@ -287,7 +287,7 @@
 								-->
 
 								<!-- obtain worker node information (if available) -->
-								<!--
+								
 								<var name="shirako.save.unit.ec2.host" unset="true" />
 								<var name="code" unset="true" />
 								<var name="message" unset="true" />
@@ -304,7 +304,7 @@
 									<arg value="${shirako.save.unit.ec2.instance}" />
 								</exec>
 								<echo message="get-host exit code: ${code} host=${shirako.save.unit.ec2.host}" />
-								-->
+								
 
 								<!-- obtain console-log (if available) -->
 								<!--
@@ -477,12 +477,10 @@
 										<echo>shirako.save.unit.quantum.ifaces: ${shirako.save.unit.quantum.ifaces}</echo>
 									</then>
 								</if>
-	
+								
 								 <!-- test writing to comet -->
                                                                  <!-- <ec2.comet.writeall sliceid="mysliceid" reservationid="myreservationid" key="mykey" value="myvalue" /> -->
-                                                                 <ec2.comet.writeall />
-
-						
+                                                                 <!-- <ec2.comet.writeall /> -->
 
 								<!-- delete the userdata file -->
 								<delete file="${neuca.ini.file}" />
@@ -491,18 +489,41 @@
 						</if>
 					</else>
 				</if>
-				</else>
-			</if>
-				<property name="shirako.target.code" value="${code}" />
-				<if>
-					<isset property="message" />
-					<then>
-						<property name="shirako.target.code.message" value="${message}" />
-					</then>
-					<else>
-						<property name="shirako.target.code.message" value="none" />
-					</else>
-				</if>
+			</else>
+		</if>
+		<property name="shirako.target.code" value="${code}" />
+		<if>
+		  <isset property="message" />
+		  <then>
+		    <property name="shirako.target.code.message" value="${message}" />
+		  </then>
+		  <else>
+		    <property name="shirako.target.code.message" value="none" />
+		  </else>
+		</if>
+		
+		<!-- ADD IB network on Cloudlab, HACK -->
+                <!-- ssh -i ~/geni_key_portal pruth0@controller /proj/cloudlab-PG0/pruth/scripts/add-ib-iface/add-ib-iface.sh compute1 instance-00000018 -->
+                <!-- <var name="code" unset="true" />
+                <var name="message" unset="true" />
+                <echo message="adding IB to instance: ${unit.ec2.instance} aka ${shirako.save.unit.ec2.instance}" />
+                <echo message="hostname: ${shirako.save.unit.ec2.host}" />
+                <exec executable="/usr/bin/ssh" resultproperty="code" outputproperty="add.ib.output">
+                  <arg value="-o" />
+                  <arg value="UserKnownHostsFile=/dev/null" />
+                  <arg value="-o" />
+                  <arg value="StrictHostKeyChecking=no" />
+                  <arg value="-i" />
+                  <arg value="/geni_key_portal" />
+                  <arg value="pruth0@controller" />
+                  <arg value="/proj/cloudlab-PG0/pruth/scripts/add-ib-iface/add-ib-iface.sh" />
+                  <arg value="${shirako.save.unit.ec2.host}" />
+                  <arg value="${shirako.save.unit.ec2.instance}" />
+                </exec>
+                <echo message="ADD IB exit code: ${code}; ${add.ib.output}" />
+                <property name="shirako.targetcode" value="${code}" />
+		-->
+
 		<echo message="join exit code: ${shirako.target.code}" />
 	</target>
 
