@@ -262,6 +262,9 @@
 							<env key="EC2_CONNECTION_TIMEOUT" value="${ec2.connection.timeout}" />
 							<env key="EC2_TENANT_ID" value="${ec2.tenant.id}" />
 							<env key="EC2_REQUEST_TIMEOUT" value="${ec2.request.timeout}" />
+							<env key="COMET_VM_KEYSTORE" value="${comet.vm.keystore}" />
+							<env key="COMET_VM_TRUSTSTORE" value="${comet.vm.truststore}" />
+							<env key="COMET_VM_PROPERTIES" value="${comet.vm.properties}" />
 						</exec>
 						<echo message="afer create instance: exit code ${code}, ${create.instance.output}" />
 
@@ -480,7 +483,7 @@
 								
 								 <!-- test writing to comet -->
                                                                  <!-- <ec2.comet.writeall sliceid="mysliceid" reservationid="myreservationid" key="mykey" value="myvalue" /> -->
-                                                                 <!-- <ec2.comet.writeall /> -->
+                                                                 <ec2.comet.writeall />
 
 								<!-- delete the userdata file -->
 								<delete file="${neuca.ini.file}" />
@@ -504,11 +507,32 @@
 		
 		<!-- ADD IB network on Cloudlab, HACK -->
                 <!-- ssh -i ~/geni_key_portal pruth0@controller /proj/cloudlab-PG0/pruth/scripts/add-ib-iface/add-ib-iface.sh compute1 instance-00000018 -->
-                <!-- <var name="code" unset="true" />
+		<var name="shirako.save.unit.ec2.instancename" unset="true" />
+                <var name="code" unset="true" />
                 <var name="message" unset="true" />
-                <echo message="adding IB to instance: ${unit.ec2.instance} aka ${shirako.save.unit.ec2.instance}" />
+                <exec executable="${ec2.scripts}/${cloud.type}-get-attribute" resultproperty="code" outputproperty="shirako.save.unit.ec2.instancename">
+                  <env key="UNIT_HOSTNAME_URL" value="${unit.hostname.url}" />
+                  <env key="EC2_HOME" value="${ec2.home}" />
+                  <env key="EC2_LOG_DIR" value="${ec2.log.dir}" />
+                  <env key="EC2_LOG_FILE" value="${ec2.log.file}" />
+                  <env key="EC2_LOG_LEVEL" value="${ec2.log.level}" />
+                  <env key="EC2_DIR" value="${ec2.dir}" />
+                  <env key="EUCA_KEY_DIR" value="${ec2.keys}" />
+                  <env key="EC2_CONNECTION_TIMEOUT" value="${ec2.connection.timeout}" />
+                  <env key="EC2_REQUEST_TIMEOUT" value="${ec2.request.timeout}" />
+                  <arg value="${shirako.save.unit.ec2.instance}" />
+		  <arg value="OS-EXT-SRV-ATTR:instance_name" />
+                </exec>
+                <echo message="get-attribute exit code: ${code} host=${shirako.save.unit.ec2.host}" />
+
+
+                <var name="code" unset="true" />
+                <var name="message" unset="true" />
+                <echo message="adding IB to instance: ${unit.ec2.instance} aka ${shirako.save.unit.ec2.instance}, instance_name : ${shirako.save.unit.ec2.instancename}" />
                 <echo message="hostname: ${shirako.save.unit.ec2.host}" />
-                <exec executable="/usr/bin/ssh" resultproperty="code" outputproperty="add.ib.output">
+		<echo message="/usr/bin/ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i /geni_key_portal pruth0@controller /proj/cloudlab-PG0/pruth/scripts/add-ib-iface/add-ib-iface.sh ${shirako.save.unit.ec2.host} ${shirako.save.unit.ec2.instancename}" />
+                <!--
+		<exec executable="/usr/bin/ssh" resultproperty="code" outputproperty="add.ib.output">
                   <arg value="-o" />
                   <arg value="UserKnownHostsFile=/dev/null" />
                   <arg value="-o" />
@@ -518,12 +542,12 @@
                   <arg value="pruth0@controller" />
                   <arg value="/proj/cloudlab-PG0/pruth/scripts/add-ib-iface/add-ib-iface.sh" />
                   <arg value="${shirako.save.unit.ec2.host}" />
-                  <arg value="${shirako.save.unit.ec2.instance}" />
+                  <arg value="${shirako.save.unit.ec2.instancename}" />
                 </exec>
                 <echo message="ADD IB exit code: ${code}; ${add.ib.output}" />
                 <property name="shirako.targetcode" value="${code}" />
 		-->
-
+		
 		<echo message="join exit code: ${shirako.target.code}" />
 	</target>
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python                                                                                                                                                   
+#!/usr/bin/env python                                                                                                                                                  
 
 import os
 import sys
@@ -8,6 +8,11 @@ import signal
 import string
 import time
 import traceback
+
+import StringIO 
+import uu 
+import binascii
+import base64
 
 from subprocess import *
 from os import kill
@@ -208,9 +213,26 @@ class VM:
                     f.close()
                 except:
                     pass
-                            
+                     
+                #read comet key stores and config to push into vm
+                server_jks=None
+                with open(os.environ['COMET_VM_KEYSTORE'], mode='rb') as file: 
+                    server_jks = base64.b64encode(file.read())
+                    
+                truststore_jks=None
+                with open(os.environ['COMET_VM_TRUSTSTORE'], mode='rb') as file: 
+                    truststore_jks = base64.b64encode(file.read())
 
-                self.nova_server = self.nova_client.servers.create(name,image,flavor,nics=network,key_name='pruth',userdata=user_data)
+                comet_vm_properties=None
+                with open(os.environ['COMET_VM_PROPERTIES'], mode='r') as file:
+                    comet_vm_properties = file.read()
+
+
+                #start the vm
+                self.nova_server = self.nova_client.servers.create(name,image,flavor,nics=network,key_name=os.environ['EC2_TENANT_ID'],userdata=user_data, 
+                                                                   files={ '/root/comet/server.jks.base64': server_jks , 
+                                                                           '/root/comet/truststore.jks.base64': truststore_jks ,
+                                                                           '/root/comet/comet.vm.properties': comet_vm_properties })
                 #instance = nova_client.servers.create(name,image,flavor,nics=network,key=key,userdata=user_data_file)
               
                 #LOG.info('**************   Printing server attributes ******************' )
@@ -316,19 +338,30 @@ class VM:
             
             network_id = self._get_network_id_from_network_name('net-'+network)
             
-            #port = {'network_id': str(network_id) ,'admin_state_up': True}
-            #port = neutron_client.create_port({'port':  port})
+            neutron_client = neutronclient.Client('2.0',
+                                               username=os.environ['OS_USERNAME'],
+                                               password=os.environ['OS_PASSWORD'],
+                                               auth_url=os.environ['OS_AUTH_URL'],
+                                               tenant_name=os.environ['OS_TENANT_NAME'],
+                                               connection_pool=True)
+
+
+            #port = {'network_id': str(network_id) , 'mac_address': str(mac) }
+            port = {'network_id': str(network_id) }
+            port = neutron_client.create_port({'port':  port})
 
             
             #LOG.debug("Network = " + str(network) + ", network_id = " + str(network_id))
-            #LOG.debug("port = " + str(port))
-
+            
+            LOG.debug("port = " + str(port))
+            LOG.debug("port['port']['id'] = " + str(port['port']['id']))
+            
 
             LOG.info("PRUTH: server:  id = " + str(self.nova_server.id)  + ", name = " + str(self.nova_server.name)  + ", status = " + str(self.nova_server.status))
                         
             #interface_attach(self, port_id, net_id, fixed_ip)
-            self.nova_server.interface_attach(net_id=network_id, port_id=None, fixed_ip=None)
-            #self.nova_server.interface_attach(port_id=port['port']['id'],net_id=None,fixed_ip=None)
+            #self.nova_server.interface_attach(net_id=network_id, port_id=None, fixed_ip=None)
+            self.nova_server.interface_attach(port_id=port['port']['id'],net_id=None,fixed_ip=None)
         except Exception as e:
             LOG.debug("Failed add_iface (" + str(self.nova_server.id)  + ")")
             LOG.error("neutron-add-iface: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
@@ -347,6 +380,9 @@ class VM:
 
     def get_host_name(self):
         return str(getattr(self.nova_server, 'OS-EXT-SRV-ATTR:host'))
+
+    def get_attribute(self, attribute):
+        return str(getattr(self.nova_server, str(attribute)))
 
     def get_name(self):
         return self.nova_server.name
