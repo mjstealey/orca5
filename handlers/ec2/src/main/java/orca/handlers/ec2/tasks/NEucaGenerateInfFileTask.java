@@ -207,20 +207,29 @@ class NEucaInfFileGenerator_v0 extends NEucaInfFileGenerator {
 
 class NEucaInfFileGenerator_v1 extends NEucaInfFileGenerator{
     String outputProperty;
+    String dataSource;
+    String vmProperties;
+    String vmKeystore;
+    String vmTruststore;
 
-    public NEucaInfFileGenerator_v1(org.apache.tools.ant.Project project){
+
+    public NEucaInfFileGenerator_v1(org.apache.tools.ant.Project project, String dataSource, String vmProperties, String vmKeystore, String vmTruststore){
 	super();
 	    
 	this.project = project;
 	this.outputProperty = "";
 	
+	this.dataSource = dataSource;
+	this.vmProperties = vmProperties;
+	this.vmKeystore = vmKeystore;
+	this.vmTruststore = vmTruststore;
     }
 
     public void doIt(PrintWriter out) throws Exception {
 	
 	generateGlobal(out);
 	generateUsers(out);
-    generateInterfaces(out);
+	generateInterfaces(out);
 	generateStorage(out);
 	generateRoutes(out);
 	generateScripts(out);
@@ -319,8 +328,31 @@ class NEucaInfFileGenerator_v1 extends NEucaInfFileGenerator{
         }else {
             out.println(";nova_id= Not Specified" );
         }
-        
-        
+
+	if (dataSource != null) {
+            out.println("neuca_data_source=" + dataSource);
+        }else {
+            out.println(";neuca_data_source= Not Specified" );
+        }
+	
+	if (vmProperties != null) {
+	    out.println("comet_vm_properties=" + vmProperties);
+        }else {
+	    out.println(";comet_vm_properties= Not Specified" );
+	}
+
+	if (vmKeystore != null) {
+	    out.println("comet_vm_keystore=" + vmKeystore);
+        }else {
+	    out.println(";comet_vm_keystore= Not Specified" );
+	}
+
+	if (vmTruststore != null) {
+	    out.println("comet_vm_truststore=" + vmTruststore);
+        }else {
+	    out.println(";comet_vm_truststore= Not Specified" );
+	}
+
     }
 
     protected void generateUsers(PrintWriter out) throws Exception {
@@ -700,7 +732,10 @@ public class NEucaGenerateInfFileTask extends OrcaAntTask{
     protected String file;
     protected String cloudType;
     protected String outputProperty;
-
+    protected String dataSource;
+    protected String vmProperties;
+    protected String vmKeystore; 
+    protected String vmTruststore;
 
     public void execute() throws BuildException {
 		
@@ -712,6 +747,13 @@ public class NEucaGenerateInfFileTask extends OrcaAntTask{
 	    if (cloudType == null) {
 		throw new Exception("Missing cloudType parameter");
 	    }
+	    
+	    //default to userdata as source
+	    if (dataSource == null) {
+                dataSource = "userdata";
+            }
+
+
             PrintWriter out = new PrintWriter(new FileWriter(new File(file)));
 
             System.out.println("file: " + file + ", cloudType: " +cloudType);
@@ -739,8 +781,7 @@ public class NEucaGenerateInfFileTask extends OrcaAntTask{
 	     
              //Currently all types use rack type NEucaInfFileGenerator_v1
              //No current need for above code. 
-	     generator = new NEucaInfFileGenerator_v1(getProject());
-
+	    generator = new NEucaInfFileGenerator_v1(getProject(),dataSource,vmProperties,vmKeystore,vmTruststore);
 
 	    generator.doIt(out);
 	    out.close();
@@ -754,6 +795,23 @@ public class NEucaGenerateInfFileTask extends OrcaAntTask{
         } catch (Exception e) {
             throw new BuildException("An error occurred: " + e.getMessage(), e);
         }
+    }
+
+    public void setVmproperties(String vmproperties) {
+        this.vmProperties = vmproperties;
+    }
+
+    public void setVmkeystore(String vmkeystore) {
+        this.vmKeystore = vmkeystore;
+    }
+
+    public void setVmtruststore(String vmtruststore) {
+        this.vmTruststore = vmtruststore;
+    }
+
+    
+    public void setDatasource(String datasource) {
+        this.dataSource = datasource;
     }
 
     public void setFile(String file) {

@@ -175,11 +175,11 @@ class VM:
                 LOG.debug('ami = ' + str(ami))
                 image=None
                 for i in self.nova_client.images.list():
-                    #LOG.debug('Checking image: ' + str(i))
-                    if i.name == ami:
+                    LOG.debug('Checking image: ' + str(i))
+                    if i.id == ami:
                         image = i
                         break
-                LOG.debug('Found image: ' + str(image.name))
+                LOG.debug('Found image: ' + str(image.name) + " (" + str(image.id) + ")")
                     
 
                 network=[]
@@ -226,25 +226,24 @@ class VM:
                 comet_vm_properties=None
                 with open(os.environ['COMET_VM_PROPERTIES'], mode='r') as file:
                     comet_vm_properties = file.read()
+                    
+                try:
+                    #start the vm
+                    self.nova_server = self.nova_client.servers.create(name,image,flavor,nics=network,key_name=os.environ['EC2_TENANT_ID'],userdata=user_data, 
+                                                                       files={ os.environ['COMET_VM_KEYSTORE_DST'] + ".base64": server_jks , 
+                                                                               os.environ['COMET_VM_TRUSTSTORE_DST'] + ".base64": truststore_jks ,
+                                                                               os.environ['COMET_VM_PROPERTIES_DST']: comet_vm_properties })
+                except Exception as e:
+                    LOG.error("Create vm failed: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
+                    
 
-
-                #start the vm
-                self.nova_server = self.nova_client.servers.create(name,image,flavor,nics=network,key_name=os.environ['EC2_TENANT_ID'],userdata=user_data, 
-                                                                   files={ '/root/comet/server.jks.base64': server_jks , 
-                                                                           '/root/comet/truststore.jks.base64': truststore_jks ,
-                                                                           '/root/comet/comet.vm.properties': comet_vm_properties })
-                #instance = nova_client.servers.create(name,image,flavor,nics=network,key=key,userdata=user_data_file)
-              
-                #LOG.info('**************   Printing server attributes ******************' )
-                #LOG.info('dir\n: ' + str(dir(self.nova_server)))
-                #LOG.info('dir\n: ' + str(self.nova_server.__dict__))
-                #LOG.info('***************************************************************')
+                
                           
   
                 instance_id = str(self.nova_server.id)
                 LOG.info("PRUTH: instance - ID = " + str(self.nova_server.id)  + ", name = " + str(self.nova_server.name)  + ", status = " + str(self.nova_server.status))
                          
-                status_check_retries=100
+                status_check_retries=360
                 status_check_timeout=10
                 for j in range(status_check_retries):
                     self.nova_server = self.nova_client.servers.get(self.nova_server.id)
@@ -252,7 +251,7 @@ class VM:
                     if str(self.nova_server.status) == 'ERROR':
                        LOG.info('nova boot fail: ID = ' + str(self.nova_server.id)  + ', name = ' + str(self.nova_server.name)  + ',  status: ' + str(self.nova_server.status))
                        self.nova_server.delete()
-                       raise Nova_Command_Fail, 'nova boot failed with VM error: ' +  + str(self.nova_server.id)  + ', name = ' + str(self.nova_server.name)  + ',  status: ' + str(self.nova_server.status)
+                       raise Nova_Command_Fail, 'nova boot failed with VM error: '  + str(self.nova_server.id)  + ', name = ' + str(self.nova_server.name)  + ',  status: ' + str(self.nova_server.status)
                     if str(self.nova_server.status) == 'ACTIVE':
                        LOG.info('nova boot success:  ID = ' + str(self.nova_server.id)  + ', name = ' + str(self.nova_server.name)  + ', status: ' + str(self.nova_server.status))
                        return str(self.nova_server.id)

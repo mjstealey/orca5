@@ -39,9 +39,15 @@
 			<equals arg1="${emulation}" arg2="true" />
 			<then>
 				<!-- create the NEUCA INI file -->
+				<if>
+				  <not><isset property="neuca.data.source" /></not>
+				  <then>
+                                    <property neuca.data.source="userdata" />
+				  </then>
+				</if>
 				<tempfile property="neuca.ini.file" destdir="${java.io.tmpdir}" prefix="neuca" suffix=".ini" deleteonexit="false" />
 				<echo message="EMULATION: neuca.ini.file: ${neuca.ini.file}, cloud.type: ${cloud.type}" />
-				<ec2.generate.neuca.inf file="${neuca.ini.file}" cloudtype="${cloud.type}" outputproperty="iface.list" />
+				<ec2.generate.neuca.inf file="${neuca.ini.file}" cloudtype="${cloud.type}" datasource="${neuca.data.source}" vmproperties="${comet.vm.properties}" vmkeystore="${comet.vm.keystore}" vmtruststore="${comet.vm.truststore}" outproperty="iface.list" />
 				<echo message="EMULATION: iface.list = ${iface.list}" />
 				<loadfile property="neuca.ini" srcFile="${neuca.ini.file}" />
 				<echo message="EMULATION: neuca.ini: ${neuca.ini}" />
@@ -194,9 +200,15 @@
 					</then>
 					<else>
 					        <!-- create the NEUCA INI file -->
+						<if>
+						  <not><isset property="neuca.data.source" /></not>
+						  <then>
+						    <property neuca.data.source="userdata" />
+						  </then>
+						</if>
                                                 <tempfile property="neuca.ini.file" destdir="${java.io.tmpdir}" prefix="neuca" suffix=".ini" deleteonexit="false" />
                                                 <echo message="neuca.ini.file: ${neuca.ini.file}, cloud.type: ${cloud.type}" />
-                                                <ec2.generate.neuca.inf file="${neuca.ini.file}" cloudtype="${cloud.type}" outputproperty="iface.list" />
+                                                <ec2.generate.neuca.inf file="${neuca.ini.file}" cloudtype="${cloud.type}" datasource="${neuca.data.source}"  vmproperties="${comet.vm.properties.destination}" vmkeystore="${comet.vm.keystore.destination}" vmtruststore="${comet.vm.truststore.destination}"  outputproperty="iface.list" />
                                                 <echo message="iface.list = ${iface.list}" />
                                                 <loadfile property="neuca.ini" srcFile="${neuca.ini.file}" />
                                                 <echo message="neuca.ini: ${neuca.ini}" />
@@ -265,6 +277,9 @@
 							<env key="COMET_VM_KEYSTORE" value="${comet.vm.keystore}" />
 							<env key="COMET_VM_TRUSTSTORE" value="${comet.vm.truststore}" />
 							<env key="COMET_VM_PROPERTIES" value="${comet.vm.properties}" />
+							<env key="COMET_VM_KEYSTORE_DST" value="${comet.vm.keystore.destination}" />
+                                                        <env key="COMET_VM_TRUSTSTORE_DST" value="${comet.vm.truststore.destination}" />
+                                                        <env key="COMET_VM_PROPERTIES_DST" value="${comet.vm.properties.destination}" />
 						</exec>
 						<echo message="afer create instance: exit code ${code}, ${create.instance.output}" />
 
