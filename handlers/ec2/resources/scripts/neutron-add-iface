@@ -57,11 +57,11 @@ try:
     LOG.debug("neutron-add-iface: " + str(sys.argv))
 
     vm = VM.get_vm(os.environ['NOVA_INSTANCE_ID'])
-    iface_uuid = vm.add_iface(os.environ['NEUTRON_TENANT_ID'],
+    iface_mac = vm.add_iface(os.environ['NEUTRON_TENANT_ID'],
                               os.environ['NEUTRON_NET_NAME'],
                               os.environ['NEUTRON_NET_IFACE_MAC'])
 
-    print iface_uuid
+    print iface_mac
 
 except Exception as e:
     LOG.error("neutron-add-iface: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))

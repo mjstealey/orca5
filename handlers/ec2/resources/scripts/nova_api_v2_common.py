@@ -327,6 +327,7 @@ class VM:
         LOG.info("PRUTH: add_iface not implemented")
         LOG.debug("add_iface: tenant " + tenant + ", network " + network + ", mac " + mac)
 
+        mac_rtn=""
         try:
             #neutron_client = neutronclient.Client('2.0',
             #                                      username=os.environ['OS_USERNAME'],
@@ -361,10 +362,14 @@ class VM:
             #interface_attach(self, port_id, net_id, fixed_ip)
             #self.nova_server.interface_attach(net_id=network_id, port_id=None, fixed_ip=None)
             self.nova_server.interface_attach(port_id=port['port']['id'],net_id=None,fixed_ip=None)
+            
+            mac_rtn = port['port']['mac_address']
         except Exception as e:
             LOG.debug("Failed add_iface (" + str(self.nova_server.id)  + ")")
             LOG.error("neutron-add-iface: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
 
+        return mac_rtn
+            
     def del_iface(self):
         #interface_detach(self, port_id)
         #interface_list(self):

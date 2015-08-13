@@ -495,7 +495,7 @@ class NEucaInfFileGenerator_v1 extends NEucaInfFileGenerator{
 	    out.println();
 
 	    //append iface to output property 
-	    outputProperty += hosteth + "." + vlanTag + "." + mac + " ";
+	    outputProperty += (i+1) + "." + hosteth + "." + vlanTag + "." + mac + " ";
 	    
         }
     }

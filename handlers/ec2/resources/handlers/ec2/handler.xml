@@ -435,19 +435,22 @@
 										<var name="instance.quantum.ifaces" unset="true" />
 										<for list="${iface.list}" param="iface" delimiter=" " parallel="false">
 											<sequential>
+											        <var name="iface.num" unset="true" />
 												<var name="iface.net.name" unset="true" />
 												<var name="iface.net.vlan" unset="true" />
 												<var name="iface.mac" unset="true" />
 												<echo>iface @{iface}</echo>
-												<propertyregex property="iface.net.name" input="@{iface}" regexp="(.*)\..*\..*" replace="\1" casesensitive="false" />
-
-												<propertyregex property="iface.net.vlan" input="@{iface}" regexp=".*\.(.*)\..*" replace="\1" casesensitive="false" />
-
-												<propertyregex property="iface.mac" input="@{iface}" regexp=".*\..*\.(.*)" replace="\1" casesensitive="false" />
+												<propertyregex property="iface.num" input="@{iface}"      regexp="(.*)\..*\..*\..*" replace="\1" casesensitive="false" />
+												<propertyregex property="iface.net.name" input="@{iface}" regexp=".*\.(.*)\..*\..*" replace="\1" casesensitive="false" />
+												<propertyregex property="iface.net.vlan" input="@{iface}" regexp=".*\..*\.(.*)\..*" replace="\1" casesensitive="false" />
+												<propertyregex property="iface.mac" input="@{iface}"      regexp=".*\..*\..*\.(.*)" replace="\1" casesensitive="false" />
+												
+												<echo>iface.num ${iface.num}</echo>
 												<echo>iface.net.uuid ${iface.net.uuid}</echo>
 												<echo>iface.mac ${iface.mac}</echo>
 												<echo>iface.net.vlan ${iface.net.vlan}</echo>
 												<echo>iface.net.name ${iface.net.name}</echo>
+												
 
 												<var name="code" unset="true" />
 												<var name="add.iface.output" unset="true" />
@@ -477,6 +480,13 @@
 												</exec>
 												<echo>result code: ${code}</echo>
 												<echo>output: ${add.iface.output}</echo>
+												
+												<!-- update mac to acutally used mac. -->
+												<!-- <property name="shirako.save.unit.eth${iface.num}.mac" value="${add.iface.output}"/> -->
+												<property name="unit.eth${iface.num}.mac.used" value="${add.iface.output}"/>
+																								
+												<echo>used mac name: unit.eth${iface.num}.mac.used </echo>
+																			
 												<if>
 													<isset property="instance.quantum.ifaces" />
 													<then>
@@ -522,6 +532,7 @@
 		
 		<!-- ADD IB network on Cloudlab, HACK -->
                 <!-- ssh -i ~/geni_key_portal pruth0@controller /proj/cloudlab-PG0/pruth/scripts/add-ib-iface/add-ib-iface.sh compute1 instance-00000018 -->
+		<!--
 		<var name="shirako.save.unit.ec2.instancename" unset="true" />
                 <var name="code" unset="true" />
                 <var name="message" unset="true" />
@@ -546,6 +557,8 @@
                 <echo message="adding IB to instance: ${unit.ec2.instance} aka ${shirako.save.unit.ec2.instance}, instance_name : ${shirako.save.unit.ec2.instancename}" />
                 <echo message="hostname: ${shirako.save.unit.ec2.host}" />
 		<echo message="/usr/bin/ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i /geni_key_portal pruth0@controller /proj/cloudlab-PG0/pruth/scripts/add-ib-iface/add-ib-iface.sh ${shirako.save.unit.ec2.host} ${shirako.save.unit.ec2.instancename}" />
+		-->
+
                 <!--
 		<exec executable="/usr/bin/ssh" resultproperty="code" outputproperty="add.ib.output">
                   <arg value="-o" />

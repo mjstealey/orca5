@@ -180,11 +180,15 @@ class CometWriteAllGenerator_v1 extends CometWriteAllGenerator{
             }
 
 
-            String mac = getProject().getProperty(UnitProperties.UnitEthPrefix + eth.toString() + UnitProperties.UnitEthMacSuffix);
+	    System.out.println("Trying to get mac property:  XX" + UnitProperties.UnitEthPrefix + eth.toString() + UnitProperties.UnitEthMacSuffix  + "XX");
+            //String mac = getProject().getProperty(UnitProperties.UnitEthPrefix + eth.toString() + UnitProperties.UnitEthMacSuffix);
+	    String mac = getProject().getProperty(UnitProperties.UnitEthPrefix + eth.toString() + UnitProperties.UnitEthMacSuffix + ".used");
             if (mac == null) {
                 System.out.println("Eth" + eth.toString() + " does not specify a MAC.");
                 continue;
             }
+	    System.out.println("Eth" + eth.toString() + "*************** PRUTH:  mac: " + mac);
+
             String ipVersion = getProject().getProperty(UnitProperties.UnitEthPrefix + eth.toString() + UnitProperties.UnitEthIPVersionSuffix);
             if (ipVersion == null) {
                 System.out.println("Eth" + eth.toString() + " does not specify an ip version.");
