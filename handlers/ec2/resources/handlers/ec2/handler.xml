@@ -206,9 +206,37 @@
 						    <property neuca.data.source="userdata" />
 						  </then>
 						</if>
-                                                <tempfile property="neuca.ini.file" destdir="${java.io.tmpdir}" prefix="neuca" suffix=".ini" deleteonexit="false" />
+                                                <tempfile property="neuca.ini.file" 
+							  destdir="${java.io.tmpdir}" 
+							  prefix="neuca" 
+							  suffix=".ini" 
+							  deleteonexit="false" />
                                                 <echo message="neuca.ini.file: ${neuca.ini.file}, cloud.type: ${cloud.type}" />
-                                                <ec2.generate.neuca.inf file="${neuca.ini.file}" cloudtype="${cloud.type}" datasource="${neuca.data.source}"  vmproperties="${comet.vm.properties.destination}" vmkeystore="${comet.vm.keystore.destination}" vmtruststore="${comet.vm.truststore.destination}"  outputproperty="iface.list" />
+
+
+						 <ec2.generate.neuca.inf file="${neuca.ini.file}"
+                                                                         cloudtype="${cloud.type}"
+                                                                         datasource="${neuca.data.source}"
+									 cometclienttableifce="${comet.vm.table.ifce}"
+									 cometclientaccumulouserdefaultpass="${comet.vm.accumulo.user.default.pass}"
+									 cometclientaccumulouserdefault="${comet.vm.accumulo.user.default}"
+									 cometclienttablemain="${comet.vm.table.main}"
+									 cometclientzookeepersehosts="${comet.vm.zookeepersehosts}"
+									 cometclientaccumuloinstance="${comet.vm.accumulo.instance}"
+									 cometclientkeystorepass="${comet.vm.keystore.pass}"
+									 cometclienttruststorepass="${comet.vm.truststore.pass}"
+									 cometvmkeystore="${comet.vm.keystore}"
+									 cometvmtruststore="${comet.vm.truststore}"
+									 outputproperty="iface.list" />
+						 <!--
+                                                <ec2.generate.neuca.inf file="${neuca.ini.file}" 
+									cloudtype="${cloud.type}" 
+									datasource="${neuca.data.source}"  
+									vmproperties="${comet.vm.properties.destination}" 
+									vmkeystore="${comet.vm.keystore.destination}" 
+									vmtruststore="${comet.vm.truststore.destination}"  
+									outputproperty="iface.list" />
+						-->
                                                 <echo message="iface.list = ${iface.list}" />
                                                 <loadfile property="neuca.ini" srcFile="${neuca.ini.file}" />
                                                 <echo message="neuca.ini: ${neuca.ini}" />

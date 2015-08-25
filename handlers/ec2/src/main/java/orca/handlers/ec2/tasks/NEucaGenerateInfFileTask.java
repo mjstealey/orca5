@@ -208,21 +208,48 @@ class NEucaInfFileGenerator_v0 extends NEucaInfFileGenerator {
 class NEucaInfFileGenerator_v1 extends NEucaInfFileGenerator{
     String outputProperty;
     String dataSource;
-    String vmProperties;
-    String vmKeystore;
-    String vmTruststore;
+    //String vmProperties;
+    //String vmKeystore;
+    //String vmTruststore;
+
+    protected String cometClientTableIfce;
+    protected String cometClientAccumuloUserDefaultPass;
+    protected String cometClientAccumuloUserDefault;
+    protected String cometClientTableMain;
+    protected String cometClientZookeeperseHosts;
+    protected String cometClientAccumuloInstance;
+    protected String cometClientKeystorePass;
+    protected String cometClientTruststorePass;
+    protected String cometVmKeystore;
+    protected String cometVmTruststore;
 
 
-    public NEucaInfFileGenerator_v1(org.apache.tools.ant.Project project, String dataSource, String vmProperties, String vmKeystore, String vmTruststore){
+
+
+    //public NEucaInfFileGenerator_v1(org.apache.tools.ant.Project project, String dataSource, String vmProperties, String vmKeystore, String vmTruststore){
+    public NEucaInfFileGenerator_v1(org.apache.tools.ant.Project project, String dataSource, String cometClientTableIfce, String cometClientAccumuloUserDefaultPass, String cometClientAccumuloUserDefault, String cometClientTableMain, String cometClientZookeeperseHosts, String cometClientAccumuloInstance, String cometClientKeystorePass, String cometClientTruststorePass, String cometVmKeystore, String cometVmTruststore){
 	super();
 	    
 	this.project = project;
 	this.outputProperty = "";
 	
 	this.dataSource = dataSource;
-	this.vmProperties = vmProperties;
-	this.vmKeystore = vmKeystore;
-	this.vmTruststore = vmTruststore;
+	//this.vmProperties = vmProperties;
+	//this.vmKeystore = vmKeystore;
+	//this.vmTruststore = vmTruststore;
+
+	this.cometClientTableIfce = cometClientTableIfce;
+	this.cometClientAccumuloUserDefaultPass = cometClientAccumuloUserDefaultPass;
+	this.cometClientAccumuloUserDefault = cometClientAccumuloUserDefault;
+	this.cometClientTableMain = cometClientTableMain;
+	this.cometClientZookeeperseHosts = cometClientZookeeperseHosts;
+	this.cometClientAccumuloInstance = cometClientAccumuloInstance;
+	this.cometClientKeystorePass = cometClientKeystorePass;
+	this.cometClientTruststorePass = cometClientTruststorePass;
+	this.cometVmKeystore = cometVmKeystore;
+	this.cometVmTruststore = cometVmTruststore;
+
+	
     }
 
     public void doIt(PrintWriter out) throws Exception {
@@ -233,13 +260,137 @@ class NEucaInfFileGenerator_v1 extends NEucaInfFileGenerator{
 	generateStorage(out);
 	generateRoutes(out);
 	generateScripts(out);
-
+	generateComet(out);
     }
 
     public String getOutputProperty(){
 	return outputProperty;
     }
 
+    
+    protected void generateComet(PrintWriter out) throws Exception {
+	String temp;
+
+        System.out.println("Processing comet section");
+        out.println("[comet]");
+
+	/*
+	if (vmProperties != null) {
+	    out.println("comet_vm_properties=" + vmProperties);
+        }else {
+            out.println(";comet_vm_properties= Not Specified" );
+        }
+
+        if (vmKeystore != null) {
+	    out.println("comet_vm_keystore=" + vmKeystore);
+	}else {
+            out.println(";comet_vm_keystore= Not Specified" );
+	}
+
+        if (vmTruststore != null) {
+	    out.println("comet_vm_truststore=" + vmTruststore);
+        }else {
+	    out.println(";comet_vm_truststore= Not Specified" );
+        }
+	*/
+
+	/*
+	
+//comet.client.keystore=/root/comet/server.jks
+//comet.client.keystore.pass=accumuloAuth
+//comet.client.truststore=/root/comet/truststore.jks
+//comet.client.truststore.pass=accumuloAuth
+
+comet.client.accumulo.instance=comet
+comet.client.zookeeperse.hosts=comet1.renci.org,comet2.renci.org,comet3.renci.org,comet4.renci.org
+comet.client.table.main=cometMain
+comet.client.accumulo.user.default=root
+comet.client.accumulo.user.default.pass=accumuloAuth
+comet.client.table.ifce=interfaces
+
+	*/
+
+	temp = this.cometClientTableIfce;
+        if (temp != null) {
+            out.println("comet.client.table.ifce=" + temp);
+        } else {
+            out.println(";comet.client.accumulo.user.default.pass= Not Specified" );
+        }
+
+
+	temp = this.cometClientAccumuloUserDefaultPass;
+        if (temp != null) {
+            out.println("comet.client.accumulo.user.default.pass=" + temp);
+        } else {
+            out.println(";comet.client.accumulo.user.default.pass= Not Specified" );
+        }
+
+
+	temp = this.cometClientAccumuloUserDefault;
+        if (temp != null) {
+            out.println("comet.client.accumulo.user.default=" + temp);
+        } else {
+            out.println(";comet.client.accumulo.user.default= Not Specified" );
+        }
+
+
+	temp = this.cometClientTableMain;
+        if (temp != null) {
+            out.println("comet.client.table.main=" + temp);
+        } else {
+            out.println(";comet.client.table.main= Not Specified" );
+        }
+
+
+
+	temp = this.cometClientZookeeperseHosts;
+        if (temp != null) {
+            out.println("comet.client.zookeeperse.hosts=" + temp);
+        } else {
+            out.println(";comet.client.zookeeperse.hosts= Not Specified" );
+        }
+
+
+	temp = this.cometClientAccumuloInstance;
+        if (temp != null) {
+            out.println("comet.client.accumulo.instance=" + temp);
+        } else {
+            out.println(";comet.client.accumulo.instance= Not Specified" );
+        }
+
+
+	temp = this.cometClientKeystorePass;
+	if (temp != null) {
+            out.println("comet.client.keystore.pass=" + temp);
+        } else {
+            out.println(";comet.client.keystore.pass= Not Specified" );
+        }
+
+	temp = this.cometClientTruststorePass;
+        if (temp != null) {
+            out.println("comet.client.truststore.pass=" + temp);
+        } else {
+            out.println(";comet.client.truststore.pass= Not Specified" );
+        }
+
+	temp = this.cometVmKeystore;
+	if (temp != null) {
+            out.println("keystore=" + temp);
+        } else {
+            out.println(";keystore= Not Specified" );
+        }
+
+
+	temp = this.cometVmTruststore;
+        if (temp != null) {
+            out.println("truststore=" + temp);
+        } else {
+            out.println(";truststore= Not Specified" );
+        }
+
+    }
+    
+    
     
     protected void generateGlobal(PrintWriter out) throws Exception {
         out.println("[global]");
@@ -334,7 +485,8 @@ class NEucaInfFileGenerator_v1 extends NEucaInfFileGenerator{
         }else {
             out.println(";neuca_data_source= Not Specified" );
         }
-	
+
+	/*
 	if (vmProperties != null) {
 	    out.println("comet_vm_properties=" + vmProperties);
         }else {
@@ -352,7 +504,7 @@ class NEucaInfFileGenerator_v1 extends NEucaInfFileGenerator{
         }else {
 	    out.println(";comet_vm_truststore= Not Specified" );
 	}
-
+	*/
     }
 
     protected void generateUsers(PrintWriter out) throws Exception {
@@ -733,9 +885,24 @@ public class NEucaGenerateInfFileTask extends OrcaAntTask{
     protected String cloudType;
     protected String outputProperty;
     protected String dataSource;
-    protected String vmProperties;
-    protected String vmKeystore; 
-    protected String vmTruststore;
+    
+    //protected String vmProperties;
+    //protected String vmKeystore; 
+    //protected String vmTruststore;
+
+    protected String cometClientTableIfce;
+    protected String cometClientAccumuloUserDefaultPass;
+    protected String cometClientAccumuloUserDefault;
+    protected String cometClientTableMain;
+    protected String cometClientZookeeperseHosts;
+    protected String cometClientAccumuloInstance;
+    protected String cometClientKeystorePass;
+    protected String cometClientTruststorePass;
+    protected String cometVmKeystore;
+    protected String cometVmTruststore;
+
+
+
 
     public void execute() throws BuildException {
 		
@@ -781,8 +948,10 @@ public class NEucaGenerateInfFileTask extends OrcaAntTask{
 	     
              //Currently all types use rack type NEucaInfFileGenerator_v1
              //No current need for above code. 
-	    generator = new NEucaInfFileGenerator_v1(getProject(),dataSource,vmProperties,vmKeystore,vmTruststore);
-
+	    //generator = new NEucaInfFileGenerator_v1(getProject(),dataSource,vmProperties,vmKeystore,vmTruststore);
+	    generator = new NEucaInfFileGenerator_v1(getProject(), dataSource, cometClientTableIfce, cometClientAccumuloUserDefaultPass, cometClientAccumuloUserDefault, cometClientTableMain, cometClientZookeeperseHosts, cometClientAccumuloInstance, cometClientKeystorePass, cometClientTruststorePass, cometVmKeystore, cometVmTruststore);
+		
+	    
 	    generator.doIt(out);
 	    out.close();
 
@@ -797,6 +966,7 @@ public class NEucaGenerateInfFileTask extends OrcaAntTask{
         }
     }
 
+    /*
     public void setVmproperties(String vmproperties) {
         this.vmProperties = vmproperties;
     }
@@ -808,7 +978,7 @@ public class NEucaGenerateInfFileTask extends OrcaAntTask{
     public void setVmtruststore(String vmtruststore) {
         this.vmTruststore = vmtruststore;
     }
-
+    */
     
     public void setDatasource(String datasource) {
         this.dataSource = datasource;
@@ -826,5 +996,44 @@ public class NEucaGenerateInfFileTask extends OrcaAntTask{
         this.outputProperty = outputproperty;
     }
 
+    public void setCometclienttableifce(String cometClientTableIfce) {
+        this.cometClientTableIfce = cometClientTableIfce;
+    }
+
+    public void setCometclientaccumulouserdefaultpass(String cometClientAccumuloUserDefaultPass) {
+        this.cometClientAccumuloUserDefaultPass = cometClientAccumuloUserDefaultPass;
+    }
+
+    public void setCometclientaccumulouserdefault(String cometClientAccumuloUserDefault) {
+        this.cometClientAccumuloUserDefault = cometClientAccumuloUserDefault;
+    }
+
+    public void setCometclienttablemain(String cometClientTableMain) {
+        this.cometClientTableMain = cometClientTableMain;
+    }
+
+    public void setCometclientzookeepersehosts(String cometClientZookeeperseHosts) {
+        this.cometClientZookeeperseHosts = cometClientZookeeperseHosts;
+    }
+
+    public void setCometclientaccumuloinstance(String cometClientAccumuloInstance) {
+        this.cometClientAccumuloInstance = cometClientAccumuloInstance;
+    }
+
+    public void setCometclientkeystorepass(String cometClientKeystorePass) {
+        this.cometClientKeystorePass = cometClientKeystorePass;
+    }
+
+    public void setCometclienttruststorepass(String cometClientTruststorePass) {
+        this.cometClientTruststorePass = cometClientTruststorePass;
+    }
+
+    public void setCometvmkeystore(String cometVmKeystore) {
+        this.cometVmKeystore = cometVmKeystore;
+    }
+
+    public void setCometvmtruststore(String cometVmTruststore) {
+        this.cometVmTruststore = cometVmTruststore;
+    }
     
 }

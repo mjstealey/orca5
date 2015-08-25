@@ -174,10 +174,10 @@ class VM:
                 #image=self.nova_client.images.list()[0]
                 LOG.debug('ami = ' + str(ami))
                 image=None
-                for i in self.nova_client.images.list():
+                for image in self.nova_client.images.list():
                     LOG.debug('Checking image: ' + str(i))
-                    if i.id == ami:
-                        image = i
+                    if image.id == ami:
+                        #image = i
                         break
                 LOG.debug('Found image: ' + str(image.name) + " (" + str(image.id) + ")")
                     
@@ -215,39 +215,41 @@ class VM:
                     pass
                      
                 #read comet key stores and config to push into vm
-                server_jks=None
-                with open(os.environ['COMET_VM_KEYSTORE'], mode='rb') as file: 
-                    server_jks = base64.b64encode(file.read())
+                #server_jks=None
+                #with open(os.environ['COMET_VM_KEYSTORE'], mode='rb') as file: 
+                #    server_jks = base64.b64encode(file.read())
                     
-                truststore_jks=None
-                with open(os.environ['COMET_VM_TRUSTSTORE'], mode='rb') as file: 
-                    truststore_jks = base64.b64encode(file.read())
+                #truststore_jks=None
+                #with open(os.environ['COMET_VM_TRUSTSTORE'], mode='rb') as file: 
+                #    truststore_jks = base64.b64encode(file.read())
 
-                comet_vm_properties=None
-                with open(os.environ['COMET_VM_PROPERTIES'], mode='r') as file:
-                    comet_vm_properties = file.read()
+                #comet_vm_properties=None
+                #with open(os.environ['COMET_VM_PROPERTIES'], mode='r') as file:
+                #    comet_vm_properties = file.read()
                     
+                
+
                 try:
                     #start the vm
-                    self.nova_server = self.nova_client.servers.create(name,image,flavor,nics=network,key_name=os.environ['EC2_TENANT_ID'],userdata=user_data, 
-                                                                       files={ os.environ['COMET_VM_KEYSTORE_DST'] + ".base64": server_jks , 
-                                                                               os.environ['COMET_VM_TRUSTSTORE_DST'] + ".base64": truststore_jks ,
-                                                                               os.environ['COMET_VM_PROPERTIES_DST']: comet_vm_properties })
+                    self.nova_server = self.nova_client.servers.create(name,image,flavor,nics=network,key_name=os.environ['EC2_TENANT_ID'],userdata=user_data
+                                                                       #files={ os.environ['COMET_VM_KEYSTORE_DST'] + ".base64": server_jks , 
+                                                                       #        os.environ['COMET_VM_TRUSTSTORE_DST'] + ".base64": truststore_jks ,
+                                                                       #        os.environ['COMET_VM_PROPERTIES_DST']: comet_vm_properties }
+                                                                       )
+                    self.nova_id = self.nova_server.id
                 except Exception as e:
                     LOG.error("Create vm failed: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
                     
-
-                
-                          
-  
+   
                 instance_id = str(self.nova_server.id)
                 LOG.info("PRUTH: instance - ID = " + str(self.nova_server.id)  + ", name = " + str(self.nova_server.name)  + ", status = " + str(self.nova_server.status))
                          
                 status_check_retries=360
                 status_check_timeout=10
                 for j in range(status_check_retries):
-                    self.nova_server = self.nova_client.servers.get(self.nova_server.id)
-
+                    #self.nova_server = self.nova_client.servers.get(self.nova_server.id)
+                    self.__update_nova_server()
+                    
                     if str(self.nova_server.status) == 'ERROR':
                        LOG.info('nova boot fail: ID = ' + str(self.nova_server.id)  + ', name = ' + str(self.nova_server.name)  + ',  status: ' + str(self.nova_server.status))
                        self.nova_server.delete()
@@ -263,6 +265,7 @@ class VM:
             
             except Exception as e:
                 LOG.info('booting VM exception (retry '+ str(i) + ') ' + str(name) + ', ' + str(e))
+                LOG.error("booting VM exception: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
 
             time.sleep(timeout)
             
@@ -273,33 +276,45 @@ class VM:
     @classmethod
     def start(self, tenant_id, instance_type, ami, aki, ari, ssh_key, startup_retries, ping_retries, ssh_retries, user_data_file, name):
         LOG.debug("start " + str(name))
-        self.nova_client= novaclient.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=True);
+        self.nova_client= novaclient.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=False);
         new_vm = VM()
         new_vm._start_vm(tenant_id, instance_type, ami, ssh_key, user_data_file, name)
         return new_vm
 
+    
+
     @classmethod
     def get_vm(self, id):
         LOG.debug("get_vm " + str(id))
-        self.nova_client= novaclient.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=True)
+        #self.nova_client= novaclient.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=False)
                               
-        vm = VM(self.nova_client.servers.get(id))
-        
+        #vm = VM(self.nova_client.servers.get(id))
+        vm = VM(id)
+
+
         LOG.debug("get_vm: " + str(vm))
         return vm 
 
-    def __init__(self, nova_server=None):
+    def __update_nova_server(self):
+        #self.nova_client= novaclient.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=False)
+        if not self.nova_id == None: 
+            self.nova_server = self.nova_client.servers.get(self.nova_id)
+        else:
+            self.nova_server = None
+
+    def __init__(self, id=None):
         LOG.debug("creating new VM object ") 
-        self.nova_server = nova_server
+        self.nova_id = id
+        self.nova_client=novaclient.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=False)
+        self.__update_nova_server()
 
     def stop(self):
-        LOG.debug("Stopping vm: " + self.nova_server.id)
+        LOG.debug("Stopping vm: " + str(self.nova_id))
         try:
             #setup connection to nova                                                                                                                                                                 #nova_client= client.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL']);
 
             #start vm                                                                                                                                                                                 #instance = nova_client.servers.get(id)
-            
-            LOG.info("PRUTH: instance - ID = " + str(self.nova_server.id)  + ", name = " + str(self.nova_server.name)  + ", status = " + str(self.nova_server.status))
+            LOG.info("PRUTH: instance - ID = " + str(self.nova_id)  + ", name = " + str(self.nova_server.name)  + ", status = " + str(self.nova_server.status))
             self.nova_server.delete()
         except:
             exception_msg += ", Failed cleaning up vm (" + str(self.nova_server.id) + ")"
@@ -312,7 +327,7 @@ class VM:
                                                password=os.environ['OS_PASSWORD'], 
                                                auth_url=os.environ['OS_AUTH_URL'], 
                                                tenant_name=os.environ['OS_TENANT_NAME'],
-                                               connection_pool=True)
+                                               connection_pool=False)
 
         networks = neutron_client.list_networks()
 
@@ -326,6 +341,9 @@ class VM:
     def add_iface(self, tenant, network, mac):
         LOG.info("PRUTH: add_iface not implemented")
         LOG.debug("add_iface: tenant " + tenant + ", network " + network + ", mac " + mac)
+        
+        #setup/update the nova server object
+        self.__update_nova_server()
 
         mac_rtn=""
         try:
@@ -343,30 +361,118 @@ class VM:
                                                password=os.environ['OS_PASSWORD'],
                                                auth_url=os.environ['OS_AUTH_URL'],
                                                tenant_name=os.environ['OS_TENANT_NAME'],
-                                               connection_pool=True)
+                                               connection_pool=False)
 
 
-            #port = {'network_id': str(network_id) , 'mac_address': str(mac) }
-            port = {'network_id': str(network_id) }
-            port = neutron_client.create_port({'port':  port})
-
+            # NOT THIS ONE  port = {'network_id': str(network_id) , 'mac_address': str(mac) }
             
+            ##port = {'network_id': str(network_id) }
+            ##port = neutron_client.create_port({'port':  port})
+
             #LOG.debug("Network = " + str(network) + ", network_id = " + str(network_id))
             
-            LOG.debug("port = " + str(port))
-            LOG.debug("port['port']['id'] = " + str(port['port']['id']))
+            #LOG.debug("port = " + str(port))
+            #LOG.debug("port['port']['id'] = " + str(port['port']['id']))
             
 
             LOG.info("PRUTH: server:  id = " + str(self.nova_server.id)  + ", name = " + str(self.nova_server.name)  + ", status = " + str(self.nova_server.status))
                         
             #interface_attach(self, port_id, net_id, fixed_ip)
-            #self.nova_server.interface_attach(net_id=network_id, port_id=None, fixed_ip=None)
-            self.nova_server.interface_attach(port_id=port['port']['id'],net_id=None,fixed_ip=None)
+            interface_attach_return = self.nova_server.interface_attach(net_id=network_id, port_id=None, fixed_ip=None)
+            #interface_attach_return = self.nova_server.interface_attach(port_id=port['port']['id'],net_id=None,fixed_ip=None)
             
-            mac_rtn = port['port']['mac_address']
+            
+
+            LOG.debug("FINISHED: neutron-add-iface server: interface_attach_return = " + str(interface_attach_return)) 
+            
+            l = dir(interface_attach_return)                                                                                                                                                                 
+            LOG.debug("FINISHED: neutron-add-iface server: interface_attach_return l = " + str(l))
+
+            LOG.debug("FINISHED: neutron-add-iface server: interface_attach_return.net_id = " + str(interface_attach_return.net_id))
+            LOG.debug("FINISHED: neutron-add-iface server: interface_attach_return.mac_addr = " + str(interface_attach_return.mac_addr))
+
+            mac_rtn = str(interface_attach_return.mac_addr)
+
+            #LOG.debug("FINISHED: neutron-add-iface server: interface_attach_return: network networks"  + str(interface_attach_return.networks))
+
+            #l = dir(interface_attach_return.networks)
+            
+            
+            #LOG.debug("FINISHED: neutron-add-iface server: interface_attach_return: network net-" + str(network)  + ", " + str(getattr(self.nova_server, 'net-'+str(network))))
+
+            #d = interface_attach_return.__dict__                                                                                                                                                             
+            #from pprint import pprint                                                                                                                                                                         
+            #pprint(l)  
+            
+            
+            count=0
+            retries=10
+            done=False
+            
+            
+            while count < retries:
+                time.sleep(5)
+                
+                self.__update_nova_server()
+                '''
+                try:
+                    interface_list_return = self.nova_server.interface_list()                                                                                                                                       
+                    LOG.debug("FINISHED: neutron-add-iface server: self.nova_server.interface_list() interface_list_return =" + str(interface_list_return))
+                    LOG.debug("FINISHED: neutron-add-iface server: self.nova_server.interface_list() interface_list_return[0] =" + str(interface_list_return[0]))
+                    
+                    for iface in interface_list_return:
+                        LOG.debug("FINISHED: neutron-add-iface server: self.nova_server.interface_list() interface_list_return  net_id = " + net_id + " , MAC = " + str(iface.mac_addr))
+                    
+                    
+                    l = dir(interface_list_return[0])
+                    d = interface_list_return[0].__dict__
+
+                    from pprint import pprint
+                    pprint(l)
+                    
+                except:
+                    LOG.debug("FINISHED: neutron-add-ifac  server: ERROR geting self.nova_server.interface_list()")
+                '''  
+                    
+                
+                try:
+                    if 'net-'+network in self.nova_server.networks.keys():
+                        LOG.debug("FINISHED: neutron-add-iface server: Found network (" + str('net-'+network)  +  ") attached to server (" + str(self.nova_server.id)  + ")")
+                        break
+
+                        #self.nova_server.networks['net-'+network]
+
+                    '''
+                    interface_list_return =  self.nova_server.networks
+                    LOG.debug("FINISHED: neutron-add-iface server: self.nova_server.networks interface_list_return =" + str(interface_list_return))
+                    
+                    
+                    LOG.debug("FINISHED: neutron-add-iface server: self.nova_server.networks interface_list_return len = " + str(len(interface_list_return)))
+                    if len(interface_list_return) >= 2:
+                        LOG.debug("FINISHED: neutron-add-iface server: chekced self.nova_server.networks has " + str(len(interface_list_return)) + " members, done")
+                        done=True
+                        break
+                     '''
+                except:
+                    LOG.debug("FINISHED: neutron-add-ifac  server: ERROR geting self.nova_server.networks")
+            
+                count = count + 1
+
+            if count >= retries:
+                LOG.debug("FINISHED: neutron-add-iface server: retried too many times, quiting")
+                
+            #for iface in self.nova_server.interface_list()):
+            #    LOG.debug("FINISHED: neutron-add-iface server: interface_attach_list iface = " + str(iface))
+            
+            #mac_rtn = '00:00:00:00:00:01'
+            #mac_rtn = port['port']['mac_address']
         except Exception as e:
             LOG.debug("Failed add_iface (" + str(self.nova_server.id)  + ")")
             LOG.error("neutron-add-iface: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
+
+
+        LOG.debug("FINISHED: neutron-add-iface server: " + str(self.nova_server.id) + " , mac: " + str(mac_rtn))
+        #LOG.debug("FINISHED: neutron-add-iface server: " + str(self.nova_server.id) + " , " + str(port))
 
         return mac_rtn
             
