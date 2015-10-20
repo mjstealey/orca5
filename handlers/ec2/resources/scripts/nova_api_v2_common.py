@@ -156,7 +156,7 @@ class VM:
         for i in range(retries):
             try:
                 #setup connection to nova
-                #nova_client= client.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=True);
+                #nova_client= client.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL']);
                 
                 #find nova properties
                 #flavor=self.nova_client.flavors.list()[6]
@@ -276,7 +276,7 @@ class VM:
     @classmethod
     def start(self, tenant_id, instance_type, ami, aki, ari, ssh_key, startup_retries, ping_retries, ssh_retries, user_data_file, name):
         LOG.debug("start " + str(name))
-        self.nova_client= novaclient.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=False);
+        self.nova_client= novaclient.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL']);
         new_vm = VM()
         new_vm._start_vm(tenant_id, instance_type, ami, ssh_key, user_data_file, name)
         return new_vm
@@ -286,7 +286,7 @@ class VM:
     @classmethod
     def get_vm(self, id):
         LOG.debug("get_vm " + str(id))
-        #self.nova_client= novaclient.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=False)
+        #self.nova_client= novaclient.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'])
                               
         #vm = VM(self.nova_client.servers.get(id))
         vm = VM(id)
@@ -296,7 +296,7 @@ class VM:
         return vm 
 
     def __update_nova_server(self):
-        #self.nova_client= novaclient.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=False)
+        #self.nova_client= novaclient.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'])
         if not self.nova_id == None: 
             self.nova_server = self.nova_client.servers.get(self.nova_id)
         else:
@@ -305,7 +305,7 @@ class VM:
     def __init__(self, id=None):
         LOG.debug("creating new VM object ") 
         self.nova_id = id
-        self.nova_client=novaclient.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'],connection_pool=False)
+        self.nova_client=novaclient.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL'])
         self.__update_nova_server()
 
     def stop(self):
@@ -327,7 +327,7 @@ class VM:
                                                password=os.environ['OS_PASSWORD'], 
                                                auth_url=os.environ['OS_AUTH_URL'], 
                                                tenant_name=os.environ['OS_TENANT_NAME'],
-                                               connection_pool=False)
+                                               )
 
         networks = neutron_client.list_networks()
 
@@ -352,7 +352,7 @@ class VM:
             #                                      password=os.environ['OS_PASSWORD'],
             #                                      auth_url=os.environ['OS_AUTH_URL'],
             #                                      tenant_name=os.environ['OS_TENANT_NAME'],
-            #                                      connection_pool=True)
+            #                                      )
             
             network_id = self._get_network_id_from_network_name('net-'+network)
             
@@ -361,7 +361,7 @@ class VM:
                                                password=os.environ['OS_PASSWORD'],
                                                auth_url=os.environ['OS_AUTH_URL'],
                                                tenant_name=os.environ['OS_TENANT_NAME'],
-                                               connection_pool=False)
+                                               )
 
 
             # NOT THIS ONE  port = {'network_id': str(network_id) , 'mac_address': str(mac) }
