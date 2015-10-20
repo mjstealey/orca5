@@ -92,7 +92,7 @@ class Neutron_Network:
     def create(self, tenant_id, network, net_name):
         LOG.debug("Neutron_Network.create: tenant_id " + str(tenant_id) + ", network " + str(network) + ", net_name " + str(net_name))
         LOG.debug("Neutron_Network.create: username " + os.environ['NEUTRON_USERNAME'] + ", password " + os.environ['NEUTRON_PASSWORD'] + ", tenant_name " + os.environ['NEUTRON_AUTH_URL'] + ", auth_url " + os.environ['NEUTRON_TENANT_ID'])
-        #neutron_client = client.Client('2.0', username=os.environ['NEUTRON_USERNAME'], password=os.environ['NEUTRON_PASSWORD'], tenant_name=os.environ['NEUTRON_AUTH_URL'], auth_url=os.environ['NEUTRON_TENANT_ID'],connection_pool=True);
+        #neutron_client = client.Client('2.0', username=os.environ['NEUTRON_USERNAME'], password=os.environ['NEUTRON_PASSWORD'], tenant_name=os.environ['NEUTRON_AUTH_URL'], auth_url=os.environ['NEUTRON_TENANT_ID']);
         new_net = Neutron_Network()
         new_net.create_network(tenant_id, network, net_name)
         return new_net
@@ -105,12 +105,12 @@ class Neutron_Network:
 
     @classmethod
     def get_network_id_from_network_name(network_name):
-        neutron_client = client.Client('2.0',
-                                       username=os.environ['NEUTRON_USERNAME'],
-                                       password=os.environ['NEUTRON_PASSWORD'],
-                                       auth_url=os.environ['NEUTRON_AUTH_URL'],
-                                       tenant_name=os.environ['NEUTRON_TENANT_ID'],
-                                       connection_pool=True);
+        neutron_client = client.Client('2.0'
+                                       ,username=os.environ['NEUTRON_USERNAME']
+                                       ,password=os.environ['NEUTRON_PASSWORD']
+                                       ,auth_url=os.environ['NEUTRON_AUTH_URL']
+                                       ,tenant_name=os.environ['NEUTRON_TENANT_ID']
+                                       );
 
 
         networks = neutron.list_networks()
@@ -123,12 +123,12 @@ class Neutron_Network:
     
     
     def get_network_from_network_name(self, network_name):
-        neutron_client = client.Client('2.0',
-                                       username=os.environ['NEUTRON_USERNAME'],
-                                       password=os.environ['NEUTRON_PASSWORD'],
-                                       auth_url=os.environ['NEUTRON_AUTH_URL'],
-                                       tenant_name=os.environ['NEUTRON_TENANT_ID'],
-                                       connection_pool=True);
+        neutron_client = client.Client('2.0'
+                                       ,username=os.environ['NEUTRON_USERNAME']
+                                       ,password=os.environ['NEUTRON_PASSWORD']
+                                       ,auth_url=os.environ['NEUTRON_AUTH_URL']
+                                       ,tenant_name=os.environ['NEUTRON_TENANT_ID']
+                                       );
 
 
         networks = neutron_client.list_networks()
@@ -151,12 +151,12 @@ class Neutron_Network:
         #name ='vlan:data:101:11111:1111'
         name = str(tenant_id) + ":" + str(network) + ":" + str(net_name)
 
-        neutron_client = client.Client('2.0', 
-                                       username=os.environ['NEUTRON_USERNAME'], 
-                                       password=os.environ['NEUTRON_PASSWORD'], 
-                                       auth_url=os.environ['NEUTRON_AUTH_URL'], 
-                                       tenant_name=os.environ['NEUTRON_TENANT_ID'],
-                                       connection_pool=True);
+        neutron_client = client.Client('2.0'
+                                       ,username=os.environ['NEUTRON_USERNAME']
+                                       ,password=os.environ['NEUTRON_PASSWORD']
+                                       ,auth_url=os.environ['NEUTRON_AUTH_URL']
+                                       ,tenant_name=os.environ['NEUTRON_TENANT_ID']
+                                       );
 
         #neutron net-create data-net2
         network = {'name': 'net-'+str(net_name), 'admin_state_up': True}
@@ -179,7 +179,7 @@ class Neutron_Network:
         #name ='vlan:data:101:11111:1111'                                                                                                                                                                   
         #name = str(tenant_id) + ":" + str(network) + ":" + str(net_name)
 
-        neutron_client = client.Client('2.0', username=os.environ['NEUTRON_USERNAME'], password=os.environ['NEUTRON_PASSWORD'], auth_url=os.environ['NEUTRON_AUTH_URL'], tenant_name=os.environ['NEUTRON_TENANT_ID'],connection_pool=True);
+        neutron_client = client.Client('2.0', username=os.environ['NEUTRON_USERNAME'], password=os.environ['NEUTRON_PASSWORD'], auth_url=os.environ['NEUTRON_AUTH_URL'], tenant_name=os.environ['NEUTRON_TENANT_ID']);
 
         LOG.debug('self.network : ' + str(self.network)) 
         
