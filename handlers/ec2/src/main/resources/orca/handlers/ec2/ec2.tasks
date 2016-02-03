@@ -1,4 +1,9 @@
 ec2.comet.writeall=orca.handlers.ec2.tasks.CometWriteAllTask
 ec2.comet.write=orca.handlers.ec2.tasks.CometWriteTask
 ec2.generate.neuca.inf=orca.handlers.ec2.tasks.NEucaGenerateInfFileTask
+<<<<<<< HEAD
+=======
+ec2.addproperty.neuca.inf=orca.handlers.ec2.tasks.NEucaAddPropertyInfFileTask
+ec2.removeproperty.neuca.inf=orca.handlers.ec2.tasks.NEucaRemovePropertyInfFileTask
+>>>>>>> c86c5cb4707d96aca0532bce9ddb5fd23388ace5
 ec2.image.proxy.register=orca.handlers.ec2.tasks.imgproxy.ImgProxyRegisterTask

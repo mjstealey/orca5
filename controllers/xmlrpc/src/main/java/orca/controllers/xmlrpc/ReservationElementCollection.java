@@ -250,7 +250,8 @@ public class ReservationElementCollection {
 	// Returns the URL names of all vms in a group indexed consistently
 	public List<String> group_getVMsInGroup(String group){
 		Collection <DomainElement> ces =  this.NodeGroupMap.get(group);
-		
+		if(ces==null)
+			logger.error("ReservationElement: ces is null, group="+group+"NodeGroupMap.szie="+NodeGroupMap.size());
 		return (LinkedList<String>) getNameCollection(ces);
 	 }
 	
@@ -338,7 +339,8 @@ public class ReservationElementCollection {
 			return;
 		String name = de.getName();
 		this.addMacAddress(de);
-		AllNodeMap.put(name,de);
+		if(!AllNodeMap.containsKey(name))
+			AllNodeMap.put(name,de);
 	}
 	
 	public void remove_vm(String name){

@@ -25,360 +25,196 @@ public class ManifestPublisher {
 	private static final String PUBSUB_SERVER_PROP = PUBSUB_PROP_PREFIX + ".server";
 	private static final String PUBSUB_LOGIN_PROP = PUBSUB_PROP_PREFIX + ".login";
 	private static final String PUBSUB_PASSWORD_PROP = PUBSUB_PROP_PREFIX + ".password";
-        private static final String PUBSUB_ROOT_PROP = PUBSUB_PROP_PREFIX + ".root";
+	private static final String PUBSUB_ROOT_PROP = PUBSUB_PROP_PREFIX + ".root";
 
-        // For certificate based login
-        private static final String PUBSUB_USECERTIFICATE_PROP = PUBSUB_PROP_PREFIX + ".usecertificate";
-        private static final String PUBSUB_KEYSTOREPATH_PROP = PUBSUB_PROP_PREFIX + ".keystorepath";
-        private static final String PUBSUB_KEYSTORETYPE_PROP = PUBSUB_PROP_PREFIX + ".keystoretype";
-        private static final String PUBSUB_TRUSTSTOREPATH_PROP = PUBSUB_PROP_PREFIX + ".truststorepath";
-        // Note truststore password would be read from the IMF.pubsub.password property when using certificates
+	// For certificate based login
+	private static final String PUBSUB_USECERTIFICATE_PROP = PUBSUB_PROP_PREFIX + ".usecertificate";
+	private static final String PUBSUB_KEYSTOREPATH_PROP = PUBSUB_PROP_PREFIX + ".keystorepath";
+	private static final String PUBSUB_KEYSTORETYPE_PROP = PUBSUB_PROP_PREFIX + ".keystoretype";
+	private static final String PUBSUB_TRUSTSTOREPATH_PROP = PUBSUB_PROP_PREFIX + ".truststorepath";
+	// Note truststore password would be read from the pubsub.password property when using certificates
+	
+	XMPPPubSub xps = null;
 
 	static Logger logger;
 
 	public ManifestPublisher(Logger l){
             logger = l;
-        }
+     }
 
-        /**
+    /**
 	 * prepare XMPP publisher object
 	 * @param args
 	 */
-	static XMPPPubSub prepareXMPP(Properties orcaPubsubProps) {
+	public void prepareXMPP() throws Exception {
 
-            String xmppServerPort = orcaPubsubProps.getProperty(PUBSUB_SERVER_PROP);
-            String xmppLogin = orcaPubsubProps.getProperty(PUBSUB_LOGIN_PROP);
-            String xmppPassword = orcaPubsubProps.getProperty(PUBSUB_PASSWORD_PROP);
+		String xmppServerPort = OrcaController.getProperty(PUBSUB_SERVER_PROP);
+		String xmppLogin = OrcaController.getProperty(PUBSUB_LOGIN_PROP);
+		String xmppPassword = OrcaController.getProperty(PUBSUB_PASSWORD_PROP);
 
-            XMPPPubSub xps = null;
+		if ((xmppServerPort == null) ||
+				(xmppLogin == null) ||
+				(xmppPassword == null)) {
+			throw new Exception("Missing properties (server:port, login and password must be specified)");
+		}
 
-            if ((xmppServerPort == null) ||
-                            (xmppLogin == null) ||
-                            (xmppPassword == null)) {
-                    logger.error("Missing IMF.pubsub properties (server:port, login and password must be specified)");
-                    return null;
-            }
+		int port = Integer.parseInt(xmppServerPort.split(":")[1]);
 
-            int port = Integer.parseInt(xmppServerPort.split(":")[1]);
+		String xmppUseCertificate = OrcaController.getProperty(PUBSUB_USECERTIFICATE_PROP);
+		if((xmppUseCertificate == null) || (xmppUseCertificate.equalsIgnoreCase("false"))) {
+			xps = new XMPPPubSub(xmppServerPort.split(":")[0], port, xmppLogin, xmppPassword, logger, null);
+		}
+		else if((xmppUseCertificate.equalsIgnoreCase("true"))){
 
-            String xmppUseCertificate = orcaPubsubProps.getProperty(PUBSUB_USECERTIFICATE_PROP);
-            if((xmppUseCertificate == null) || (xmppUseCertificate.equalsIgnoreCase("false"))) {
-                xps = new XMPPPubSub(xmppServerPort.split(":")[0], port, xmppLogin, xmppPassword, logger, null);
-            }
-            else if((xmppUseCertificate.equalsIgnoreCase("true"))){
+			String kspath = OrcaController.getProperty(PUBSUB_KEYSTOREPATH_PROP);
+			String kstype = OrcaController.getProperty(PUBSUB_KEYSTORETYPE_PROP);
+			String tspath = OrcaController.getProperty(PUBSUB_TRUSTSTOREPATH_PROP);
+			// Remember xmppPassword == truststorepass (when using certificates)
+			String tspass = xmppPassword;
 
-                String kspath = orcaPubsubProps.getProperty(PUBSUB_KEYSTOREPATH_PROP);
-                String kstype = orcaPubsubProps.getProperty(PUBSUB_KEYSTORETYPE_PROP);
-                String tspath = orcaPubsubProps.getProperty(PUBSUB_TRUSTSTOREPATH_PROP);
-                // Remember xmppPassword == truststorepass (when using certificates)
-                String tspass = xmppPassword;
+			if((kspath == null) || (kstype == null) || (tspath == null)){
+				throw new Exception("Missing keystore path, keystore type or truststore path for certificate based login");
+			}
 
-                if((kspath == null) || (kstype == null) || (tspath == null)){
-                    logger.error("Missing keystore path, keystore type or truststore path for certificate based login");
-                    logger.error("Specify IMF.pubsub.keystorepath , IMF.pubsub.keystoretype and IMF.pubsub.truststorepath properties in measurement.properties");
-                    return null;
-                }
+			xps = new XMPPPubSub(xmppServerPort.split(":")[0], port,
+					xmppLogin, xmppPassword, kspath, kstype, tspath, tspass, logger, null);
+			
+			if (xps == null) 
+				throw new Exception("Unable to create XMPP connection");
+		}
+		else {
+			throw new Exception("Certificate usage property has to be specified as: pubsub.usecertificate=[true|false]");
+		}
+	}
 
-                xps = new XMPPPubSub(xmppServerPort.split(":")[0], port,
-                                xmppLogin, xmppPassword, kspath, kstype, tspath, tspass, logger, null);
-            }
-            else {
-                logger.info("Certificate usage property has to be specified as: IMF.pubsub.usecertificate=[true|false]");
-                return null;
-            }
-
-            return xps;
+	public void disconnectXMPP() throws Exception {
+		try {
+			if (xps != null)
+				xps._finalize();
+		} catch (Throwable ex) {
+			throw new Exception("Error disconnecting from XMPP server: " + ex);
+		}
 
 	}
 
-
-        /**
+    /**
 	 * prepare XMPP publisher object
 	 * @param args
 	 */
-	static XMPPPubSub prepareXMPPForAcctCreation(Properties orcaPubsubProps) {
+	public void createAccountAndDisconnect() throws Exception {
 
-            String xmppServerPort = orcaPubsubProps.getProperty(PUBSUB_SERVER_PROP);
-            String xmppLogin = orcaPubsubProps.getProperty(PUBSUB_LOGIN_PROP);
-            String xmppPassword = orcaPubsubProps.getProperty(PUBSUB_PASSWORD_PROP);
+		logger.info("createAccountAndDisconnect(): Creating an account on XMPP server");
+		String xmppServerPort = OrcaController.getProperty(PUBSUB_SERVER_PROP);
+		String xmppLogin = OrcaController.getProperty(PUBSUB_LOGIN_PROP);
+		String xmppPassword = OrcaController.getProperty(PUBSUB_PASSWORD_PROP);
 
-            XMPPPubSub xps = null;
+		if ((xmppServerPort == null) ||
+				(xmppLogin == null)) {
+			throw new Exception("Missing properties (server:port and login must be specified)");
+		}
 
-            if ((xmppServerPort == null) ||
-                            (xmppLogin == null)) {
-                    logger.error("Missing IMF.pubsub properties (server:port and login must be specified)");
-                    return null;
-            }
+		int port = Integer.parseInt(xmppServerPort.split(":")[1]);
 
-            int port = Integer.parseInt(xmppServerPort.split(":")[1]);
+		String defaultPassword = "defaultpass";
+		XMPPPubSub xmppAcctCreation = new XMPPPubSub(xmppServerPort.split(":")[0], port, xmppLogin, defaultPassword, logger, null);
 
-            String defaultPassword = "defaultpass";
-            xps = new XMPPPubSub(xmppServerPort.split(":")[0], port, xmppLogin, defaultPassword, logger, null);
-
-            return xps;
-
+		xmppAcctCreation.createAccountAndDisconnect();
+		logger.info("createAccountAndDisconnect(): Account created");
+		
+		try {
+			xmppAcctCreation._finalize();
+		} catch(Throwable ex) {
+			throw new Exception("Error disconnecting from XMPP server " + ex);
+		}
 	}
 
-        /**
-         * Main method to publish the manifest for a given actor and slice
-         * @param actor_id
-         * @param slice_id
-         * @param manifest
-         */
+	/**
+	 * Main method to publish the manifest for a given actor and slice
+	 * @param actor_id
+	 * @param slice_id
+	 * @param manifest
+	 */
 
-        public void publishManifest( String actor_id, String slice_id, String manifest )
-        {
+	public void publishManifest( String actor_id, String slice_id, String manifest ) {
+		if (xps == null) { 
+			logger.error("publishManifest(): XMPP object not initialized, skipping");
+			return;
+		}
+		
+		if (actor_id == null || slice_id == null || manifest == null){
+			logger.error("publishManifest(): At least one of actor_id, slice_id, manifest is null; Can't publish manifest");
+			return;
+		}
 
-            if(actor_id == null || slice_id == null || manifest == null){
-                logger.info("At least one of actor_id, slice_id, manifest is null; Can't publish manifest");
-                return;
-            }
+		String pubsubRoot = OrcaController.getProperty(PUBSUB_ROOT_PROP); // for example ORCA.pubsub.root=orca/sm
+		String node = "/" + pubsubRoot + "/" + actor_id + "/" + slice_id + "/" + "manifest" ;
 
-            logger.info("Loading orca pubsub properties");
+		logger.info("publishManifest(): publishing manifest for node: " + node);
 
-            Properties orcaPubsubProps = new Properties();
-            File f = new File(OrcaController.ControllerConfigurationFile);
-            if (f.exists()) {
-                try {
-                    logger.info("Successfully loaded orcapubsub.properties");
-                    orcaPubsubProps.load(new FileInputStream(f));
-                } catch (IOException ex) {
-                    logger.info("Error loading orcapubsub properties file; Can't publish manifest");
-                    return;
-                }
-            } else {
-                    logger.info("No orcapubsub properties; Can't publish manifest");
-                    return;
-            }
-            
-            if (orcaPubsubProps == null) {
-                    logger.error("Unable to load properties file. Make sure orcapubsub properties is at $ORCA_HOME/config; Can't publish manifest");
-                    return;
-            }
-            
-            // create new account if required
-            logger.info("Creating XMPP connection for new account creation");
-            XMPPPubSub xmppAcctCreation = prepareXMPPForAcctCreation(orcaPubsubProps);
-            if (xmppAcctCreation == null) {
-                    logger.info("Unable to create XMPP object for creating new accounts; Can't publish manifest");
-                    return;
-            }
-            xmppAcctCreation.createAccountAndDisconnect();
+		String base64EncodedZippedManifest = orca.util.CompressEncode.compressEncode(manifest);
 
-            // create a pubsub object
-            logger.info("Creating XMPP connection");
-            XMPPPubSub xmpp = prepareXMPP(orcaPubsubProps);
-            if (xmpp == null) {
-                    logger.error("Unable to create XMPPPublisher object ; Can't publish manifest");
-                    return;
-            }
+		xps.publishManifest(node, base64EncodedZippedManifest);
+	}
 
-            String pubsubRoot = orcaPubsubProps.getProperty(PUBSUB_ROOT_PROP); // for example ORCA.pubsub.root=orca/sm
-            String node = "/" + pubsubRoot + "/" + actor_id + "/" + slice_id + "/" + "manifest" ;
+	/**
+	 * Main method to publish slicList for an SM actor
+	 * @param actor_id
+	 * @param slice_id
+	 * @param manifest
+	 */
 
-            logger.info("ManifestPublisher: publishing manifest for node: " + node);
-            
-            String base64EncodedZippedManifest = orca.util.CompressEncode.compressEncode(manifest);
-            
-            xmpp.publishManifest(node, base64EncodedZippedManifest);
+	public void publishSliceList( String actor_id, String sliceListString )
+	{
+		if (xps == null) { 
+			logger.error("publishSliceList(): XMPP object not initialized, skipping");
+			return;
+		}
+		
+		if(actor_id == null || sliceListString == null){
+			logger.error("publishSliceList(): At least one of actor_id, sliceListString is null; Can't publish sliceList");
+			return;
+		}
 
-            try {
-                xmpp._finalize();
-            } catch (Throwable ex) {
-                logger.error("Error disconnecting from xmpp server");
-            }
+		String pubsubRoot = OrcaController.getProperty(PUBSUB_ROOT_PROP); // for example ORCA.pubsub.root=orca/sm
+		String node = "/" + pubsubRoot + "/" + actor_id + "/" + "sliceList" ;
 
-        }
-
-        /**
-         * Main method to publish slicList for an SM actor
-         * @param actor_id
-         * @param slice_id
-         * @param manifest
-         */
-
-        public void publishSliceList( String actor_id, String sliceListString )
-        {
-
-            if(actor_id == null || sliceListString == null){
-                logger.info("At least one of actor_id, sliceListString is null; Can't publish sliceList");
-                return;
-            }
-
-            logger.info("Loading orca pubsub properties");
-
-            Properties orcaPubsubProps = new Properties();
-            File f = new File(OrcaController.ControllerConfigurationFile);
-            if (f.exists()) {
-                try {
-                    logger.info("Successfully loaded orcapubsub.properties");
-                    orcaPubsubProps.load(new FileInputStream(f));
-                } catch (IOException ex) {
-                    logger.info("Error loading orcapubsub properties file; Can't publish sliceList");
-                    return;
-                }
-            } else {
-                    logger.info("No orcapubsub properties; Can't publish sliceList");
-                    return;
-            }
-
-            if (orcaPubsubProps == null) {
-                    logger.error("Unable to load properties file. Make sure orcapubsub properties is at $ORCA_HOME/config; Can't publish sliceList");
-                    return;
-            }
-            
-            // create new account if required
-            logger.info("Creating XMPP connection for new account creation");
-            XMPPPubSub xmppAcctCreation = prepareXMPPForAcctCreation(orcaPubsubProps);
-            if (xmppAcctCreation == null) {
-                    logger.info("Unable to create XMPP object for creating new accounts; Can't publish sliceList");
-                    return;
-            }
-            xmppAcctCreation.createAccountAndDisconnect();
-
-            // create a pubsub object
-            logger.info("Creating XMPP connection");
-            XMPPPubSub xmpp = prepareXMPP(orcaPubsubProps);
-            if (xmpp == null) {
-                    logger.error("Unable to create XMPPPublisher object ; Can't publish sliceList");
-                    return;
-            }
-
-            String pubsubRoot = orcaPubsubProps.getProperty(PUBSUB_ROOT_PROP); // for example ORCA.pubsub.root=orca/sm
-            String node = "/" + pubsubRoot + "/" + actor_id + "/" + "sliceList" ;
-
-            logger.info("ManifestPublisher: publishing sliceList for: " + node);
-            xmpp.publishSliceList(node, sliceListString);
-
-            try {
-                xmpp._finalize();
-            } catch (Throwable ex) {
-                logger.error("Error disconnecting from xmpp server");
-            }
-
-        }
+		logger.info("publishSliceList(): publishing sliceList for: " + node);
+		xps.publishSliceList(node, sliceListString);
+	}
 
 
-        public void expungeNode(String actor_id, String slice_id, String suffix){
+	public void expungeNode(String actor_id, String slice_id, String suffix){
+		if (xps == null) { 
+			logger.error("expungeNode(): XMPP object not initialized, skipping");
+			return;
+		}
+		
+		if (actor_id == null || slice_id == null || suffix == null){
+			logger.error("expungeNode(): At least one of actor_id, slice_id, suffix is null; Can't expunge xmpp pubsub node");
+			return;
+		}
 
-            if(actor_id == null || slice_id == null || suffix == null){
-                logger.info("At least one of actor_id, slice_id, suffix is null; Can't expunge xmpp pubsub node");
-                return;
-            }
+		String pubsubRoot = OrcaController.getProperty(PUBSUB_ROOT_PROP); // for example ORCA.pubsub.root=orca/sm
+		String node = "/" + pubsubRoot + "/" + actor_id + "/" + slice_id + "/" + suffix ;
 
-            logger.info("Loading orca pubsub properties");
+		xps.deleteNode(node);
+	}
 
-            Properties orcaPubsubProps = new Properties();
-            File f = new File(OrcaController.ControllerConfigurationFile);
-            if (f.exists()) {
-                try {
-                    logger.info("Successfully loaded orcapubsub.properties");
-                    orcaPubsubProps.load(new FileInputStream(f));
-                } catch (IOException ex) {
-                    logger.info("Error loading orcapubsub properties file; Can't expunge xmpp pubsub node");
-                    return;
-                }
-            } else {
-                    logger.info("No orcapubsub properties; Can't expunge xmpp pubsub node");
-                    return;
-            }
+	public void expungeNode(String nodePath){
 
-            if (orcaPubsubProps == null) {
-                    logger.error("Unable to load properties file. Make sure orcapubsub properties is at $ORCA_HOME/config; Can't expunge xmpp pubsub node");
-                    return;
-            }
-            
-            // create new account if required
-            logger.info("Creating XMPP connection for new account creation");
-            XMPPPubSub xmppAcctCreation = prepareXMPPForAcctCreation(orcaPubsubProps);
-            if (xmppAcctCreation == null) {
-                    logger.info("Unable to create XMPP object for creating new accounts; Can't expunge xmpp pubsub node");
-                    return;
-            }
-            xmppAcctCreation.createAccountAndDisconnect();
+		if (xps == null) { 
+			logger.error("expungeNode(): XMPP object not initialized, skipping");
+			return;
+		}
+		
+		if(nodePath == null){
+			logger.error("expungeNode(): nodePath is null; Can't expunge xmpp pubsub node");
+			return;
+		}
+		
+		String pubsubRoot = OrcaController.getProperty(PUBSUB_ROOT_PROP); // for example ORCA.pubsub.root=orca/sm
+		String node = "/" + pubsubRoot + "/" + nodePath ;
 
-            // create a pubsub object
-            logger.info("Creating XMPP connection");
-            XMPPPubSub xmpp = prepareXMPP(orcaPubsubProps);
-            if (xmpp == null) {
-                    logger.error("Unable to create XMPPPublisher object ; Can't expunge xmpp pubsub node");
-                    return;
-            }
-
-            String pubsubRoot = orcaPubsubProps.getProperty(PUBSUB_ROOT_PROP); // for example ORCA.pubsub.root=orca/sm
-            String node = "/" + pubsubRoot + "/" + actor_id + "/" + slice_id + "/" + suffix ;
-
-            xmpp.deleteNode(node);
-
-            try {
-                xmpp._finalize();
-            } catch (Throwable ex) {
-                logger.error("Error disconnecting from xmpp server");
-            }
-
-
-        }
-
-        public void expungeNode(String nodePath){
-
-            if(nodePath == null){
-                logger.info("nodePath is null; Can't expunge xmpp pubsub node");
-                return;
-            }
-
-            logger.info("Loading orca pubsub properties");
-
-            Properties orcaPubsubProps = new Properties();
-            File f = new File(OrcaController.ControllerConfigurationFile);
-            if (f.exists()) {
-                try {
-                    logger.info("Successfully loaded orcapubsub.properties");
-                    orcaPubsubProps.load(new FileInputStream(f));
-                } catch (IOException ex) {
-                    logger.info("Error loading orcapubsub properties file; Can't expunge xmpp pubsub node");
-                    return;
-                }
-            } else {
-                    logger.info("No orcapubsub properties; Can't expunge xmpp pubsub node");
-                    return;
-            }
-
-            if (orcaPubsubProps == null) {
-                    logger.error("Unable to load properties file. Make sure orcapubsub properties is at $ORCA_HOME/config; Can't expunge xmpp pubsub node");
-                    return;
-            }
-            
-            // create new account if required
-            logger.info("Creating XMPP connection for new account creation");
-            XMPPPubSub xmppAcctCreation = prepareXMPPForAcctCreation(orcaPubsubProps);
-            if (xmppAcctCreation == null) {
-                    logger.info("Unable to create XMPP object for creating new accounts; Can't expunge xmpp pubsub node");
-                    return;
-            }
-            xmppAcctCreation.createAccountAndDisconnect();
-
-            // create a pubsub object
-            logger.info("Creating XMPP connection");
-            XMPPPubSub xmpp = prepareXMPP(orcaPubsubProps);
-            if (xmpp == null) {
-                    logger.error("Unable to create XMPPPublisher object ; Can't expunge xmpp pubsub node");
-                    return;
-            }
-
-            String pubsubRoot = orcaPubsubProps.getProperty(PUBSUB_ROOT_PROP); // for example ORCA.pubsub.root=orca/sm
-            String node = "/" + pubsubRoot + "/" + nodePath ;
-
-            xmpp.deleteNode(node);
-
-            try {
-                xmpp._finalize();
-            } catch (Throwable ex) {
-                logger.error("Error disconnecting from xmpp server");
-            }
-
-
-        }
-
-
-
+		xps.deleteNode(node);
+	}
 }

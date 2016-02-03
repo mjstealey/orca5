@@ -12,8 +12,18 @@ import java.util.Set;
 import org.junit.Test;
 
 import com.hp.hpl.jena.ontology.OntModel;
+import com.hp.hpl.jena.query.Query;
+import com.hp.hpl.jena.query.QueryExecution;
+import com.hp.hpl.jena.query.QueryExecutionFactory;
+import com.hp.hpl.jena.query.QueryFactory;
+import com.hp.hpl.jena.query.ResultSet;
+import com.hp.hpl.jena.rdf.model.InfModel;
 import com.hp.hpl.jena.rdf.model.Literal;
 import com.hp.hpl.jena.rdf.model.Resource;
+import com.hp.hpl.jena.rdf.model.Statement;
+import com.hp.hpl.jena.rdf.model.StmtIterator;
+import com.hp.hpl.jena.sparql.core.ResultBinding;
+import com.hp.hpl.jena.util.PrintUtil;
 
 public class RequestParserTest implements INdlRequestModelListener {
 
@@ -99,28 +109,77 @@ public class RequestParserTest implements INdlRequestModelListener {
 		assert(is != null);
 		String r = new Scanner(is).useDelimiter("\\A").next();
 		
-		RequestParserTest rpt = new RequestParserTest();
-		NdlRequestParser nrp = new NdlRequestParser(r, rpt);
+		NdlRequestParser nrp = new NdlRequestParser(r, this);
+
 		nrp.processRequest();
 		nrp.freeModel();
 	}
 
-	private static String[] requests={ "/test-color-extension.rdf", "/large-osg-request.rdf" };
+	
+	private void tempQuery(InfModel om) {
+		String selectStr = "SELECT ?node";
+		String fromStr = "";
+		String whereStr = " WHERE {?node domain:hasResourceType compute:BareMetalCE.}";
+		
+		String queryString = NdlCommons.createQueryString(selectStr, fromStr, whereStr);
+		
+        Query query = QueryFactory.create(queryString);
+
+        // Execute the query and obtain results
+        QueryExecution qe = QueryExecutionFactory.create(query, om);
+        ResultSet rs = qe.execSelect();
+		
+		while(rs.hasNext()) {
+			ResultBinding result = (ResultBinding)rs.next();
+			Resource node = (Resource)result.get("node");
+			System.out.println("Found node " + node.getURI());
+		}
+		System.out.println("DONE");
+	}
+	
+	private void printModel(InfModel om) {
+		for (StmtIterator i = om.listStatements(); i.hasNext(); ) {
+			Statement stmt = i.nextStatement();
+			System.out.println(" - " + PrintUtil.print(stmt));
+		} 
+	}
+	
+	private static String[] validRequests={ "/test-color-extension.rdf", "/large-osg-request.rdf", "/group-storage.rdf", "/node-storage.rdf" };
+	private static String[] invalidRequests={ "/broadcast-storage-invalid.rdf", "/node-storage-bound-invalid.rdf" };
 	
 	@Test
 	public void run() throws NdlException, IOException {
-		for(String r: requests) {
+		System.out.println("Running valid requests");
+		for(String r: validRequests) {
 			System.out.println("++++++++++");
 			System.out.println("Running request " + r);
 			run_(r);
+		}
+		System.out.println("Running invalid requests");
+		for(String r: invalidRequests) {
+			System.out.println("++++++++++");
+			System.out.println("Running request " + r);
+			try {
+				run_(r);
+				throw new NdlException("Expected validation failure for " + r);
+			} catch (NdlException ne) {
+				if (!ne.toString().contains("Request validation failed"))
+					throw ne;
+			}
 		}
 	}
 	
 	public static void main(String[] argv) {
 		try {
+			System.out.println("Reading " + argv[0]);
 			new RequestParserTest().run_(argv[0]);
 		} catch (Exception e) {
 			System.err.println("Error: " + e);
 		}
+//		try {
+//			new RequestParserTest().run();
+//		} catch (Exception e) {
+//			System.err.println("Error: " + e);
+//		}
 	}
 }

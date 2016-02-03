@@ -1,7 +1,10 @@
 package orca.ndl;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.UUID;
 
@@ -9,11 +12,18 @@ import orca.ndl.INdlModifyModelListener.ModifyType;
 
 import com.hp.hpl.jena.ontology.OntModel;
 import com.hp.hpl.jena.query.ResultSet;
+import com.hp.hpl.jena.rdf.model.InfModel;
 import com.hp.hpl.jena.rdf.model.Literal;
+import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.Resource;
 import com.hp.hpl.jena.rdf.model.Statement;
 import com.hp.hpl.jena.rdf.model.StmtIterator;
+import com.hp.hpl.jena.reasoner.ValidityReport;
+import com.hp.hpl.jena.reasoner.ValidityReport.Report;
+import com.hp.hpl.jena.reasoner.rulesys.GenericRuleReasoner;
+import com.hp.hpl.jena.reasoner.rulesys.Rule;
 import com.hp.hpl.jena.sparql.core.ResultBinding;
+import com.hp.hpl.jena.util.PrintUtil;
 import com.hp.hpl.jena.util.ResourceUtils;
 
 /**
@@ -24,10 +34,13 @@ import com.hp.hpl.jena.util.ResourceUtils;
  * @author ibaldin
  *
  */
-public class NdlModifyParser extends NdlCommons {
+public class NdlModifyParser extends NdlParserHelper {
+	public static final String USER_MODIFY_RULES_FILE_PROPERTY = "NDL_MODIFY_RULE_FILE";
+	private static final String RULES_FILE = "orca/ndl/rules/modifyRules.rules";
 	INdlModifyModelListener listener;
 	OntModel modifyModel;
 	boolean rewritten=false;
+	private boolean lessStrictChecking = false;
 
 	public NdlModifyParser(String ndlModifyRequest, INdlModifyModelListener l) throws NdlException {
 
@@ -157,7 +170,11 @@ public class NdlModifyParser extends NdlCommons {
 	public synchronized void processModifyRequest() throws NdlException {
 		if (modifyModel == null)
 			return;
-
+		
+		if (!lessStrictChecking) {
+			validateRequest(RULES_FILE, USER_MODIFY_RULES_FILE_PROPERTY, modifyModel);
+		}
+		
 		// reservation query from which everything flows
 		String query = OntProcessor.createQueryStringModifyReservation();
 		ResultSet rs = OntProcessor.rdfQuery(modifyModel, query);
@@ -188,15 +205,13 @@ public class NdlModifyParser extends NdlCommons {
 							if (tmpR.hasProperty(modifyAddElementProperty)){ 
 								modType = ModifyType.ADD;
 								obj = tmpR.getProperty(modifyAddElementProperty).getResource();
-							}
-							
-
-							if (tmpR.hasProperty(modifyRemoveElementProperty)){
+							} else if (tmpR.hasProperty(modifyElementProperty)){ 
+								modType = ModifyType.MODIFY;
+								obj = tmpR.getProperty(modifyElementProperty).getResource();
+							} else if (tmpR.hasProperty(modifyRemoveElementProperty)){
 								modType = ModifyType.REMOVE;
 								obj = tmpR.getProperty(modifyRemoveElementProperty).getResource();
-							}
-							
-							if (tmpR.hasProperty(modifyIncreaseByProperty)){
+							} else if (tmpR.hasProperty(modifyIncreaseByProperty)){
 								modType = ModifyType.INCREASE;
 								n = tmpR.getProperty(modifyIncreaseByProperty).getInt();
 							}
@@ -209,7 +224,11 @@ public class NdlModifyParser extends NdlCommons {
 		}
 		listener.ndlParseComplete();
 	}
-
+	
+	public void doLessStrictChecking() {
+		lessStrictChecking = true;
+	}
+	
 	/**
 	 * Free the model that was passed in to the listener interface. It is highly
 	 * recommended you use this function, rather than freeing the model yourself.

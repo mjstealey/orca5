@@ -7,10 +7,11 @@ import orca.controllers.OrcaController;
 import orca.controllers.OrcaXmlrpcServlet;
 import orca.controllers.xmlrpc.geni.GeniAmV1Handler;
 import orca.controllers.xmlrpc.geni.GeniAmV2Handler;
-import orca.controllers.xmlrpc.pubsub.PublishManager;
 import orca.controllers.xmlrpc.x509util.CredentialValidator;
 import orca.manage.IOrcaServiceManager;
 import orca.ndl.NdlCommons;
+import orca.ndl.NdlModifyParser;
+import orca.ndl.NdlRequestParser;
 import orca.shirako.common.ConfigurationException;
 import orca.util.ID;
 
@@ -30,7 +31,6 @@ public class XmlRpcController extends OrcaController {
 	public static final String PropertyControllerMemoryThreshold = "controller.memory.threshold";
 	public static final String PropertyVelocityTmpdir = "velocity.tmpdir";
 	public static final String PropertyDefaultBrokerName = "xmlrpc.controller.defaultBroker";
-	public static final String PropertyPublishManifest = "ORCA.publish.manifest";
 	public static final String KeystoreLocation = "config/xmlrpc.jks";
 	public static final String KeystorePasswordProperty = "xmlrpc.controller.keystore.pass";
 	public static final String CtrlPortProperty = "xmlrpc.controller.port";
@@ -38,6 +38,8 @@ public class XmlRpcController extends OrcaController {
 	public static final String PropertyControllerCallWaitTimeMs = "controller.wait.time.ms";
 	public static final String PropertyControllerMaxCreateTimeMs = "controller.create.wait.time.ms";
 	public static final String PropertyDelayResourceTypes = "controller.delay.resource.types";
+	public static final String PropertyUserRequestRulesFile = "controller.user.request.rules.file";
+	public static final String PropertyUserModifyRulesFile = "controller.user.modify.rules.file";
 	
 	private static final int defaultPort = 9443;
 	private static final int defaultThreads = 10;
@@ -46,10 +48,6 @@ public class XmlRpcController extends OrcaController {
 	 * The jetty server.
 	 */
 	private Server server;
-	/**
-	 * The publish manager.
-	 */
-	private PublishManager pubManager = null;
 
 	@Override
 	public ID getBroker(IOrcaServiceManager sm) {
@@ -63,6 +61,21 @@ public class XmlRpcController extends OrcaController {
 	protected void init() throws Exception {
 		super.init();
 		XmlrpcOrcaState.getInstance().setController(this);
+		
+		// copy NDL-related controller properties into system properties
+		String requestRulesFileName = OrcaController.getProperty(XmlRpcController.PropertyUserRequestRulesFile);
+		if (requestRulesFileName != null) {
+			Log.info("Copying " + XmlRpcController.PropertyUserRequestRulesFile + " set to " + requestRulesFileName + " to " + NdlRequestParser.USER_REQUEST_RULES_FILE_PROPERTY + " system property");
+			System.setProperty(NdlRequestParser.USER_REQUEST_RULES_FILE_PROPERTY, 
+					requestRulesFileName);
+		}
+		
+		String modifyRulesFileName = OrcaController.getProperty(XmlRpcController.PropertyUserModifyRulesFile);
+		if (modifyRulesFileName != null) {
+			Log.info("Copying " + XmlRpcController.PropertyUserModifyRulesFile + " set to " + modifyRulesFileName + " to " + NdlModifyParser.USER_MODIFY_RULES_FILE_PROPERTY + " system property");
+			System.setProperty(NdlModifyParser.USER_MODIFY_RULES_FILE_PROPERTY, 
+					modifyRulesFileName);
+		}
 	}
 	  
 	private void setupXmlRpcHandlers() throws ConfigurationException {		
@@ -75,11 +88,6 @@ public class XmlRpcController extends OrcaController {
 	        OrcaXmlrpcServlet.addXmlrpcHandler(GeniAmV2Handler.XMLRPC_SUFFIX, GeniAmV2Handler.class, true);
 		} catch (XmlRpcException e){
 			throw new ConfigurationException(e);
-		}
-		
-		if ("true".equalsIgnoreCase(getProperty(PropertyPublishManifest))) {
-			Log.info("Starting Publish Manager thread");
-			pubManager = new PublishManager(); // This will start the publisher thread
 		}
 	}
 
@@ -174,6 +182,8 @@ public class XmlRpcController extends OrcaController {
 				recover();
 				Log.info("Starting XMLRPC handlers");
 				setupXmlRpcHandlers();
+				Log.info("Starting support threads");
+				XmlrpcOrcaState.startThreads();
 			} catch (Exception e){
 				Log.fatal("Could not start the XMLRPC controller", e);
 				System.err.println(e.getMessage());

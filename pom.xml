@@ -48,8 +48,10 @@
 		<orca.tools.build.version>1.0</orca.tools.build.version>
 		<orca.repository.id>geni-orca-libs</orca.repository.id>
 		<orca.snap.repository.id>geni-orca-snapshot</orca.snap.repository.id>
+		<orca.rel.repository.id>geni-orca-release</orca.rel.repository.id>
 		<orca.repository.url>http://ci-dev.renci.org/nexus/content/repositories/geni-orca-libs</orca.repository.url>
 		<orca.snap.repository.url>http://ci-dev.renci.org/nexus/content/repositories/geni-orca-snapshot/</orca.snap.repository.url>
+		<orca.rel.repository.url>http://ci-dev.renci.org/nexus/content/repositories/geni-orca-release/</orca.rel.repository.url>
 		<orca.website.id>orca.website</orca.website.id>
 		<orca.website.url>dav:https://geni-orca.renci.org/orca-doc/current</orca.website.url>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -77,6 +79,14 @@
 			<snapshots>
 				<enabled>true</enabled>
 				<updatePolicy>always</updatePolicy>
+			</snapshots>
+		</repository>
+		<!-- ORCA releases -->
+		<repository>
+			<id>${orca.rel.repository.id}</id>
+			<url>${orca.rel.repository.url}</url>
+			<snapshots>
+				<enabled>false</enabled>
 			</snapshots>
 		</repository>
 		<!--  FIXME: get rid of these repositories. Move what we need from them into the orca nexus repo -->
@@ -127,9 +137,9 @@
                         <url>${orca.snap.repository.url}</url>
 		</snapshotRepository>
 		<repository>
-			<id>${orca.repository.id}</id>
+			<id>${orca.rel.repository.id}</id>
 			<name>Orca Project Maven Release Repository</name>
-			<url>${orca.repository.url}</url>
+			<url>${orca.rel.repository.url}</url>
 		</repository>
 		<site>
 			<id>${orca.website.id}</id>
@@ -138,7 +148,8 @@
 	</distributionManagement>
 
 	<scm>
-		<connection>scm:git:https://github.com/RENCI-NRIG/orca5.git</connection>
+		<developerConnection>scm:git:git@github.com:RENCI-NRIG/orca5.git</developerConnection>
+		<connection>scm:git:git@github.com:RENCI-NRIG/orca5.git</connection>
 		<url>https://github.com/RENCI-NRIG/orca5</url>
 	</scm>
 
@@ -158,6 +169,11 @@
 				<groupId>junit</groupId>
 				<artifactId>junit</artifactId>
 				<version>4.10</version>
+			</dependency>
+			<dependency>
+			      <groupId>org.ini4j</groupId>
+			      <artifactId>ini4j</artifactId>
+			      <version>0.5.4</version>
 			</dependency>
 			<dependency>
 				<groupId>log4j</groupId>
@@ -345,6 +361,11 @@
 			<scope>test</scope>
 
 		</dependency>
+                        <dependency>
+                        <groupId>org.ini4j</groupId>
+                        <artifactId>ini4j</artifactId>
+                        <version>0.5.4</version>
+                </dependency>
 		<dependency>
 			<groupId>log4j</groupId>
 			<artifactId>log4j</artifactId>
@@ -379,7 +400,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>2.0.2</version>
+				<version>3.3</version>
 				<configuration>
 					<source>1.7</source>
 					<target>1.7</target>

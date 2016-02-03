@@ -1,8 +1,12 @@
 package orca.plugins.ben.control;
 
+import java.lang.reflect.Method;
 import java.util.Properties;
 
+import org.apache.log4j.Logger;
+
 import orca.embed.cloudembed.MultiPointNetworkHandler;
+import orca.embed.cloudembed.NetworkHandler;
 import orca.embed.policyhelpers.RequestReservation;
 import orca.ndl.elements.NetworkConnection;
 import orca.shirako.api.IAuthorityReservation;
@@ -14,13 +18,29 @@ import orca.shirako.container.Globals;
 import orca.shirako.core.Unit;
 import orca.shirako.core.UnitSet;
 import orca.shirako.kernel.ResourceSet;
+import orca.shirako.plugins.config.Config;
+import orca.shirako.plugins.config.ConfigToken;
 import orca.shirako.util.ResourceData;
 import orca.util.PropList;
 
 public class NdlMPControl extends BenNdlControl {
 
+	{
+		propertiesConverter = NlrNdlPropertiesConverter.class;
+		try {
+			propertiesConverterConvertMethod = propertiesConverter.getDeclaredMethod("convert", NetworkConnection.class, NetworkHandler.class, Logger.class);
+		} catch(NoSuchMethodException nme) {
+			System.out.println("Unable to find appropriate convert method in " + propertiesConverter.getCanonicalName());
+			Method[] methods = propertiesConverter.getMethods();
+			for (Method m: methods) {
+				System.out.println("Method " + m);
+			}
+		}
+	}
+	
 	@Override
 	public void donate(IClientReservation r) throws Exception {
+		logger.debug("NdlMpControl.donate() for " + r + " is called");
 		if (handler != null) {
 			throw new Exception("only a single source reservation is supported");
 		}        
@@ -34,6 +54,7 @@ public class NdlMPControl extends BenNdlControl {
 	 * {@overide}
 	 */
 	public ResourceSet assign(IAuthorityReservation r) throws Exception {
+		logger.debug("NdlMpControl.assign() for " + r + " is called");
 		if (handler == null) {
 			throw new Exception("no inventory");
 		}
@@ -70,7 +91,7 @@ public class NdlMPControl extends BenNdlControl {
 		String uri = rr.getReservation();
 		NetworkConnection con = handler.getConnection(uri);
 
-		Properties handlerProperties = NlrNdlPropertiesConverter.convert(con, (MultiPointNetworkHandler)handler, logger);
+		Properties handlerProperties = NlrNdlPropertiesConverter.convert(con, handler, logger);
 		if(handlerProperties==null)
 			return null;
 		UnitSet gained = null;
@@ -103,47 +124,49 @@ public class NdlMPControl extends BenNdlControl {
 		}
 		return new ResourceSet(gained, null, null, type, rd);
 	}
-
-	@Override
-	public synchronized void close(IReservation reservation) {
-		logger.debug("NdlMPControl.close(): for reservation: " + reservation.getReservationID().toHashString());
-
-		//super.close(reservation);
-
-		Unit u = null;
-
-		try {
-			u = ((UnitSet) reservation.getResources().getResources()).getSet().iterator().next();
-		} catch (Exception e) {
-			u = null;
-		}
-
-		setcloseInProgress();
-		if (u != null) {            
-			String uri = u.getProperty(PropertyRequestID);
-			logger.debug("NdlMPControl.close(): found unit for reservation: " + reservation.getReservationID().toHashString() + " requestID=" + uri);
-			// unset the setup properties
-			NetworkConnection con = handler.getConnection(uri);
-			Properties setupProperties = NlrNdlPropertiesConverter.convert(con, (MultiPointNetworkHandler)handler, logger);
-			u.unsetProperties(setupProperties);
-			// set the teardown properties
-			NetworkConnection teardown = handler.getConnectionTeardownActions(uri);
-			Properties teardownProperties = NlrNdlPropertiesConverter.convert(con, (MultiPointNetworkHandler)handler, logger);
-			u.mergeProperties(teardownProperties);  
-
-			String requestID = u.getProperty(PropertyRequestID);
-			try {
-				handler.releaseReservation(requestID);
-			} catch (Exception e) {
-				logger.error("NdlMPControl.close(): Exception: " + e);
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}	
-		} else {
-			unsetcloseInProgress();
-			logger.debug("NdlMPControl.close(): missing unit for reservation " + reservation.getReservationID().toHashString());
-		}
-	}
+	
+//	@Override
+//	public synchronized void close(IReservation reservation) {
+//		logger.debug("NdlMPControl.close(): for reservation: " + reservation.getReservationID());
+//
+//		//super.close(reservation);
+//
+//		Unit u = null;
+//
+//		try {
+//			u = ((UnitSet) reservation.getResources().getResources()).getSet().iterator().next();
+//		} catch (Exception e) {
+//			u = null;
+//		}
+//
+//		setcloseInProgress();
+//		if (u != null) {   
+//			String uri = u.getProperty(PropertyRequestID);
+//			logger.debug("NdlMPControl.close(): found unit for reservation: " + reservation.getReservationID() + " requestID=" + uri);
+//			// unset the setup properties
+//			NetworkConnection con = handler.getConnection(uri);
+//			Properties setupProperties = NlrNdlPropertiesConverter.convert(con, handler, logger);
+//			u.unsetProperties(setupProperties);
+//			// set the teardown properties
+//			NetworkConnection teardown = handler.getConnectionTeardownActions(uri);
+//			Properties teardownProperties = NlrNdlPropertiesConverter.convert(con, (MultiPointNetworkHandler)handler, logger);
+//			u.mergeProperties(teardownProperties);  
+//
+//			closeConnectionCleanup(u);
+//			/*
+//			String requestID = u.getProperty(PropertyRequestID);
+//			try {
+//				handler.releaseReservation(requestID);
+//			} catch (Exception e) {
+//				logger.error("NdlMPControl.close(): Exception: " + e);
+//				e.printStackTrace();
+//			}
+//			*/	
+//		} else {
+//			unsetcloseInProgress();
+//			logger.debug("NdlMPControl.close(): missing unit for reservation " + reservation.getReservationID());
+//		}
+//	}
 	
 	@Override
 	public void recoveryStarting() {

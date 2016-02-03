@@ -7,22 +7,24 @@ package orca.controllers.xmlrpc.pubsub;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 import orca.controllers.OrcaController;
 import orca.controllers.OrcaControllerException;
-import orca.controllers.xmlrpc.ReservationConverter;
+import orca.controllers.xmlrpc.SliceStateMachine.SliceTransitionException;
 import orca.controllers.xmlrpc.XmlrpcControllerSlice;
 import orca.controllers.xmlrpc.XmlrpcHandlerHelper;
 import orca.controllers.xmlrpc.XmlrpcOrcaState;
-import orca.controllers.xmlrpc.SliceStateMachine.SliceTransitionException;
-import orca.embed.workflow.RequestWorkflow;
 import orca.manage.IOrcaServiceManager;
-import orca.manage.beans.ReservationMng;
-import orca.shirako.common.SliceID;
+import orca.shirako.container.Globals;
 
 import org.apache.log4j.Logger;
 
@@ -32,39 +34,47 @@ import org.apache.log4j.Logger;
  */
 public class PublishManager {
 
-	private static ArrayList<Timer> timers = new ArrayList<Timer>();
-	private static boolean noStart = false;
+	private static final int PUBLISHER_PERIOD = 30;
 
 	protected XmlrpcOrcaState instance = null;
-	protected PublishQueue pubQ = null;
-	protected Logger logger = OrcaController.getLogger(this.getClass().getName());
+	protected static Logger logger = OrcaController.getLogger(PublishManager.class.getSimpleName());
 	protected String actor_guid = null;
 	protected String actor_name = null;
+	private Set<SliceState> sliceList = new HashSet<SliceState>(); // list of active slices that need to be published (aka sliceList for blowhole consumption)
+	
+	// scheduler that creates daemon threads
+	protected static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1, new ThreadFactory() {
+		   public Thread newThread(Runnable runnable) {
+			      Thread thread = Executors.defaultThreadFactory().newThread(runnable);
+			      thread.setDaemon(true);
+			      return thread;
+			   }
+		});
+	protected static final List<ScheduledFuture<?>> futures = new ArrayList<>();
+	protected static boolean noStart = false;
 
 	public PublishManager(){
 
 		initialize();
 		//expunge sliceList pubsub node on startup
 		doExpungeSliceList();
-
-		Timer timer = null;
-		synchronized(timers) {
-			if (noStart)
-				return;
-			timer = new Timer("PublisherTask", true);
-			timers.add(timer);
+		
+		if (noStart)
+			return;
+		synchronized(futures) {
+			futures.add(scheduler.scheduleAtFixedRate(new PublisherTask(), PUBLISHER_PERIOD, PUBLISHER_PERIOD, TimeUnit.SECONDS));
 		}
-		timer.schedule(new PublisherTask(), 30*1000, 30*1000); // run every 30 seconds
 	}
 
-	private void allStop() {
-		logger.info("Shutting down pubsub threads");
-		synchronized(timers) {
-			noStart=true;
-			for (Timer t: timers) {
-				t.cancel();
-			}
-			timers.clear();
+	/**
+	 * Since we use daemon threads, this isn't needed /ib
+	 */
+	public static void allStop() {
+		logger.info("Shutting down pubsub thread");
+		noStart = true;
+		synchronized(futures) {
+			for(ScheduledFuture<?> f: futures)
+				f.cancel(false);
 		}
 	}
 
@@ -81,21 +91,29 @@ public class PublishManager {
 
 		while (actor_guid == null || actor_name == null){
 			try {
+				if (instance == null) 
+					throw new Exception("unable to get XMLRPCOrcaState instance");
+
 				sm = instance.getSM();
-				if (sm == null) {
-					logger.error("initialize(): SM instance is null.");
-				}
+
+				if (sm == null)
+					throw new Exception("SM is null");
+				
 				actor_guid = sm.getGuid().toString();
 				actor_name = sm.getName();
 				logger.info("SM actor name: " + actor_name + " | SM actor guid: " + actor_guid);
 			} catch (Exception e) {
-				logger.error("initialize(): unable to get a connection to SM due to: " + e);
+				logger.error("initialize(): unable to get a connection to SM due to: " + e + ", waiting 1 sec.");
+				try {
+					Thread.sleep(1000);
+				} catch (Exception ee) {
+					;
+				}
 			} finally {
 				if (sm != null)
 					instance.returnSM(sm);
 			}
 		}
-
 	}
 
 	private void doExpungeSliceList() {
@@ -104,16 +122,20 @@ public class PublishManager {
 		logger.info("Deleting node : " + actor_name + "---" + actor_guid + "/" + "sliceList");
 
 		try {
+			mPublisher.createAccountAndDisconnect();
+			mPublisher.prepareXMPP();
 			mPublisher.expungeNode(actor_name + "---" + actor_guid + "/" + "sliceList");
+			mPublisher.disconnectXMPP();
 		} catch (Exception e){
 			logger.error("Exception in PublishManager:doExpungeSliceList() : " + e );
 		}
 	}
 
-	class PublisherTask extends TimerTask {
+	class PublisherTask implements Runnable {
 
 		public void run() {
 
+			ManifestPublisher mPublisher = new ManifestPublisher(logger);
 			try{
 
 				// Find if Orca container is still running
@@ -131,126 +153,74 @@ public class PublishManager {
 
 				logger.info("Orca container is active..... Publishing thread:START");
 
-				pubQ = PublishQueue.getInstance();
+				PublishQueue pubQ = PublishQueue.getInstance();
 
-				ArrayList<SliceState> currSliceStateQ = pubQ.getCurrentQ();
+				// notice this reaches deep into the pubQ object to get slice list and allows
+				// modifying individual slice states in it directly (as done below) /ib
+				Set<SliceState> currSliceStateQ = pubQ.getCurrentQ();
 				ArrayList<SliceState> toRemoveSliceStateQ = new ArrayList<SliceState>();
 
 				// Process new slices Q
-				ArrayList<SliceState> currNewSliceQ = pubQ.getNewSlicesQ();
-
-				ArrayList<SliceState> clonedCurrNewSliceQ = new ArrayList<SliceState>();
-
-				if(currNewSliceQ != null && currNewSliceQ.size() > 0){
-					synchronized(currNewSliceQ){
-						logger.info("New slices arrived...");
-						Iterator<SliceState> it3 = currNewSliceQ.iterator();
-						while(it3.hasNext()){
-							SliceState currSliceState3 = (SliceState) it3.next();
-							clonedCurrNewSliceQ.add(currSliceState3);
-						}
-						currNewSliceQ.clear();
-					}
-
-				}
-
-				if(clonedCurrNewSliceQ != null && clonedCurrNewSliceQ.size() > 0){
-					synchronized(currSliceStateQ){ // lock on slicesToWatch
-						Iterator<SliceState> it1 = clonedCurrNewSliceQ.iterator();
-						while(it1.hasNext()){
-							SliceState currSliceState1 = (SliceState) it1.next();
-							logger.info("Pushing " + currSliceState1.getSlice_urn() + "into PubQ");
-							pubQ.addToPubQ(currSliceState1);
-						}
-					}
-				}
-
+				pubQ.drainNew();
 
 				// Process deleted slices Q
-				ArrayList<String> currDeletedSliceQ = pubQ.getDeletedSlicesQ();
+				pubQ.drainDeleted();
+				
+				// process modified slices
+				pubQ.drainModified();
 
-				ArrayList<String> clonedCurrDeletedSliceQ = new ArrayList<String>();
+				// initialize XMPP. This is inefficient, but helps when XMPP server gets wiped and restarted
+				mPublisher.createAccountAndDisconnect();
+				mPublisher.prepareXMPP();
+				
+				synchronized(pubQ){
 
-				if(currDeletedSliceQ != null && currDeletedSliceQ.size() > 0){
-					synchronized(currDeletedSliceQ){
-						logger.info("Some slice(s) were deleted...");
-						Iterator<String> it4 = currDeletedSliceQ.iterator();
-						while(it4.hasNext()){
-							String currSliceUrn = (String) it4.next();
-							clonedCurrDeletedSliceQ.add(currSliceUrn);
-						}
-						currDeletedSliceQ.clear();
-					}
-
-				}
-
-				if(clonedCurrDeletedSliceQ != null && clonedCurrDeletedSliceQ.size() > 0){
-					synchronized(currSliceStateQ){ // lock on slicesToWatch == pubQ.getCurrentQ
-						Iterator<String> it2 = clonedCurrDeletedSliceQ.iterator();
-						while(it2.hasNext()){
-							String currSliceUrn = (String) it2.next();
-							logger.info("Deleting " + currSliceUrn + " from PubQ");
-							pubQ.deleteFromPubQ(currSliceUrn);
-						}
-					}
-				}
-
-
-
-				synchronized(currSliceStateQ){
-
-					if(currSliceStateQ == null){
+					if ((currSliceStateQ == null) || (currSliceStateQ.size() <= 0)){
 						return; // nothing to do if there are no slices to watch
 					}
-					if(currSliceStateQ.size() <= 0){ // nothing in the queue
-						return;
-					}
 
+					boolean publishSliceList = false;
 					Iterator<SliceState> it = currSliceStateQ.iterator();
 					while(it.hasNext()){ // go through all the slicestates
 
 						SliceState currSliceState = (SliceState) it.next();
 						String currSliceUrn = currSliceState.getSlice_urn();
+						String currSliceID = currSliceState.getSlice_ID();
 						int currWaitTime = currSliceState.getWaitTime();
 
-						if(currSliceState.getState() == SliceState.PubSubState.SUBMITTED){ // State 0, just submitted
-							logger.info("Slice: " + currSliceUrn + " in state SUBMITTED");
-							logger.info("Publishing Initial manifest for slice: " + currSliceUrn);
-							doPublish(currSliceUrn);
+						if (currSliceState.getState() == SliceState.PubSubState.SUBMITTED){ // State 0, just submitted
+							logger.info("Slice: " + currSliceUrn + "/" + currSliceID + " in state SUBMITTED, going to state INPROGRESS, publishing manifest");
+							doPublish(mPublisher, currSliceUrn);
 							currSliceState.setState(SliceState.PubSubState.INPROGRESS);
-							logger.info("Slice: " + currSliceUrn + " going to state INPROGRESS");
 							// add currSliceState to sliceList
-							pubQ.addToSliceList(currSliceState);
+							addToSliceList(currSliceState);
 							// pub sliceList
-							doPublishSliceList();
+							publishSliceList = true;
 						}
 						else if(currSliceState.getState() == SliceState.PubSubState.INPROGRESS){ // State 1, in progress
 							logger.info("Slice: " + currSliceUrn + " in state INPROGRESS");
 							boolean checkDone = checkDone(currSliceUrn);
 							boolean checkClosed = checkClosed(currSliceUrn);
 							if(checkDone == true){
-								logger.info("Publishing Final manifest for slice: " + currSliceUrn);
-								doPublish(currSliceUrn);
+								logger.info("Publishing Final manifest for slice: " + currSliceUrn + ", slice going to DONEACTIVE");
+								doPublish(mPublisher, currSliceUrn);
 								currSliceState.setState(SliceState.PubSubState.DONEACTIVE);
 								currSliceState.setWaitTime(2*60*24); // wait for one day, since publish thread executed every 30 seconds
-								logger.info("Slice: " + currSliceUrn + " going to state DONEACTIVE");
 							}
 							else if(checkClosed == true){
-								logger.info("Slice: " + currSliceUrn + " went to Closed state");
-								logger.info("Final manifest for slice: " + currSliceUrn + " not published ");
+								logger.info("Slice: " + currSliceUrn + " is cloded, final manifest is not published, going to DONECLOSED");
 								currSliceState.setState(SliceState.PubSubState.DONECLOSED);
 								Date now = new Date();
 								currSliceState.setEndTime(now);
 								currSliceState.setWaitTime(2*60*24); // wait for one day, since publish thread executed every 30 seconds
-								logger.info("Slice: " + currSliceUrn + " going to state DONECLOSED");
 								// modify sliceList for currSliceState
-								pubQ.setPropsForSliceInSliceList(currSliceUrn, currSliceState.getState(), currSliceState.getEndTime(), currSliceState.getWaitTime());
+								setPropsForSliceInSliceList(currSliceUrn, currSliceState.getState(), currSliceState.getEndTime(), currSliceState.getWaitTime());
 								// publish sliceList
-								doPublishSliceList();
+								publishSliceList = true;
 							}
 							else{
 								logger.info("Publishing Intermediate manifest for slice: " + currSliceUrn);
-								doPublish(currSliceUrn);
+								doPublish(mPublisher, currSliceUrn);
 								currSliceState.setState(SliceState.PubSubState.WAITINPROGRESS);
 								currSliceState.setWaitTime(2); // wait for one minute, since the Publish thread executes every 30 seconds
 								logger.info("Slice: " + currSliceUrn + " going to state WAITINPROGRESS");
@@ -280,9 +250,9 @@ public class PublishManager {
 								currSliceState.setWaitTime(2*60*24);
 								logger.info("Slice: " + currSliceUrn + " going to state in DONECLOSED");
 								// modify sliceList for currSliceState
-								pubQ.setPropsForSliceInSliceList(currSliceUrn, currSliceState.getState(), currSliceState.getEndTime(), currSliceState.getWaitTime());
+								setPropsForSliceInSliceList(currSliceUrn, currSliceState.getState(), currSliceState.getEndTime(), currSliceState.getWaitTime());
 								// publish sliceList
-								doPublishSliceList();
+								publishSliceList = true;
 							}
 							else {
 								if(currWaitTime > 0){
@@ -318,29 +288,31 @@ public class PublishManager {
 							currSliceState.setState(SliceState.PubSubState.DONECLOSED);
 							logger.info("Slice: " + currSliceUrn + " going to state DONECLOSED");
 							// modify sliceList entry for currSliceState
-							pubQ.setPropsForSliceInSliceList(currSliceUrn, currSliceState.getState(), currSliceState.getEndTime(), currSliceState.getWaitTime());
+							setPropsForSliceInSliceList(currSliceUrn, currSliceState.getState(), currSliceState.getEndTime(), currSliceState.getWaitTime());
 							// publish sliceList
-							doPublishSliceList();
+							publishSliceList = true;
 						}
 						else if(currSliceState.getState() == SliceState.PubSubState.EXPUNGE){ // end of lifecycle, delete xmpp pubsub node
 							logger.info("Slice: " + currSliceUrn + " in state EXPUNGE");
-							doExpunge(currSliceUrn, currSliceState.getOrcaSliceID(), "manifest"); // delete the manifest
+							doExpunge(mPublisher, currSliceUrn, currSliceState.getOrcaSliceID(), "manifest"); // delete the manifest
 							toRemoveSliceStateQ.add(currSliceState);
 							// remove toRemoveSliceState entry from sliceList
-							pubQ.deleteFromSliceList(currSliceUrn);
+							deleteFromSliceList(currSliceUrn);
 							// publish sliceList
-							doPublishSliceList();
+							publishSliceList = true;
 						}
 						else {
 							logger.info("PublishManager: slice state in unknown");
 						}
 
 					}// end while
+					
+					if (publishSliceList)
+						doPublishSliceList(mPublisher);
 
 					if(!toRemoveSliceStateQ.isEmpty()){
 						for (SliceState s : toRemoveSliceStateQ){
 							logger.info("Removing " + s.getSlice_urn() + " from the PubQ after end of manifest lifecycle");
-							System.out.println("Removing " + s.getSlice_urn() + " from the PubQ after end of manifest lifecycle");
 							currSliceStateQ.remove(s);
 						}
 					}
@@ -348,13 +320,18 @@ public class PublishManager {
 
 			} catch(Exception e){ // this is to catch all exceptions in the run() method for the timer thread; prevents timer thread from getting killed by exceptions
 				logger.error("Exception occured during Timer thread execution for handling PubSub: Stack trace follows... " , e);
-				logger.error("Continuing execution beyond Exception");
-				System.out.println("There was an exception during Timer thread execution for handling PubSub");
+				e.printStackTrace();
+			} finally {
+				try {
+					mPublisher.disconnectXMPP();
+				} catch (Exception ex) {
+					logger.error("Unable disconnect from XMPP: " + ex);
+				}
 			}
 		}
 
 
-		private void doPublish(String slice_urn){
+		private void doPublish(ManifestPublisher mPublisher, String slice_urn){
 
 			String manifest = null;
 			try {
@@ -365,7 +342,6 @@ public class PublishManager {
 			}
 			String orcaSliceID = XmlrpcControllerSlice.getSliceIDForUrn(slice_urn);
 
-			ManifestPublisher mPublisher = new ManifestPublisher(logger);
 			logger.info("Publishing manifest for : " + actor_name + "---" + actor_guid + " | " + slice_urn + "---" + orcaSliceID);
 			//logger.info("ORCA Manifest:" + manifest);
 
@@ -376,7 +352,7 @@ public class PublishManager {
 			}
 		}
 
-		private void doPublishSliceList(){
+		private void doPublishSliceList(ManifestPublisher mPublisher){
 
 			String sliceListString = buildSliceListString();
 			if(sliceListString == null){
@@ -387,7 +363,6 @@ public class PublishManager {
 				logger.info("doPublishSliceList(): sliceList is empty");
 			}
 
-			ManifestPublisher mPublisher = new ManifestPublisher(logger);
 			logger.info("doPublishSliceList(): Publishing sliceList for : " + actor_name + "---" + actor_guid);
 			logger.info("doPublishSliceList(): Current sliceList:" + sliceListString);
 
@@ -401,10 +376,11 @@ public class PublishManager {
 
 		private String buildSliceListString(){
 
+			PublishQueue pubQ = PublishQueue.getInstance();
 			String sliceListString = null;
-			ArrayList<SliceState> currSliceStateList = PublishQueue.getInstance().getCurrentSliceList();
-
-			synchronized(currSliceStateList){
+			Set<SliceState> currSliceStateList = getCurrentSliceList();
+			
+			synchronized(pubQ){
 
 				if(currSliceStateList == null){
 					logger.error("buildSliceListString(): slicestatelist = null");
@@ -450,19 +426,18 @@ public class PublishManager {
 			}
 
 			if (sliceListString != null) {
-				logger.info("buildSliceListString(): sliceListString = " + sliceListString);
+				logger.debug("buildSliceListString(): sliceListString[first 100 chars] = " + sliceListString.substring(1, 100));
 			}
 			else {
-				logger.info("buildSliceListString(): Null sliceList");
+				logger.debug("buildSliceListString(): Null sliceList");
 			}
 
 			return sliceListString;
 
 		}
 
-		private void doExpunge(String slice_urn, String orcaSliceID, String suffix){
+		private void doExpunge(ManifestPublisher mPublisher, String slice_urn, String orcaSliceID, String suffix){
 
-			ManifestPublisher mPublisher = new ManifestPublisher(logger);
 			logger.info("Deleting node : " + actor_name + "---" + actor_guid + " / " + slice_urn + "---" + orcaSliceID.toString());
 
 			try {
@@ -486,7 +461,7 @@ public class PublishManager {
 			boolean status = false;
 
 			try {
-				status = ( xcs.isStableOK() || xcs.isStableError() );  // if (all active) or (all either active or failed)
+				status = ( xcs.isStable() );  // if (all active) or (all either active or failed)
 			} catch (SliceTransitionException ex) {
 				logger.error("Exception while checking status of slice in ckeckDone() " + ex);
 			} catch (Exception e){
@@ -496,37 +471,6 @@ public class PublishManager {
 
 
 			return status;
-
-			/*
-
-            boolean isDone = false;
-
-            instance = XmlrpcOrcaState.getInstance();
-            IServiceManager sm = instance.getSM();
-            Logger logger = sm.getLogger();
-
-            IReservation [] allRes = null;
-            SliceID orcaSliceID = XmlrpcControllerSlice.getSliceIDForUrn(slice_urn);
-            allRes = (IReservation[]) sm.getReservations(orcaSliceID);
-
-            boolean allReady = true;
-            boolean allFailed = true;
-
-            for (int j=0; j<allRes.length; j++ ){
-                if(!(allRes[j].getReservationState().getStateName().equalsIgnoreCase("Active"))){
-                    allReady = false;
-                }
-                if(!(allRes[j].getReservationState().getStateName().equalsIgnoreCase("Failed"))){
-                    allFailed = false;
-                }
-            }
-
-            isDone = (allReady || allFailed) ;
-
-            return isDone;
-
-			 */
-
 		}
 
 		private boolean checkClosed(String slice_urn){
@@ -541,7 +485,7 @@ public class PublishManager {
 			boolean status = false;
 
 			try {
-				status = ( xcs.isDead() || xcs.isDeadOrClosing() );  // if (all closed) or (all either closing or closed)
+				status = ( xcs.isDeadOrClosing() );  // if (all closed) or (all either closing or closed)
 			} catch (SliceTransitionException ex) {
 				logger.error("Exception while checking status of slice in ckeckClosed() " + ex);
 			} catch (Exception e){
@@ -550,28 +494,6 @@ public class PublishManager {
 			}
 
 			return status;
-
-			/*
-            instance = XmlrpcOrcaState.getInstance();
-            IServiceManager sm = instance.getSM();
-            Logger logger = sm.getLogger();
-
-            IReservation [] allRes = null;
-            SliceID orcaSliceID = XmlrpcControllerSlice.getSliceIDForUrn(slice_urn);
-            allRes = (IReservation[]) sm.getReservations(orcaSliceID);
-
-            boolean allClosed = true;
-
-            for (int j=0; j<allRes.length; j++ ){
-                if(!(allRes[j].getReservationState().getStateName().equalsIgnoreCase("Closed"))){
-                    allClosed = false;
-                }
-            }
-
-            return allClosed ;
-			 */
-
-
 		}
 
 
@@ -595,6 +517,58 @@ public class PublishManager {
 		 */
 
 	}
+	
+	
+	/**
+	 * Manage slicelist functions 
+	 */
+	
+    public Set<SliceState> getCurrentSliceList(){
+    	return sliceList;
+    }
+
+    public void addToSliceList(SliceState slice){
+    	sliceList.add(slice);
+    }
+
+    public void deleteFromSliceList(String slice_urn){
+    	SliceState toRemoveSliceState = null;
+    	if(sliceList != null){
+    		Iterator<SliceState> it = sliceList.iterator();
+    		while(it.hasNext()){ // go through all the slicestates
+    			SliceState currSliceState = (SliceState) it.next();
+    			String currSliceUrn = currSliceState.getSlice_urn();
+    			if(currSliceUrn.equalsIgnoreCase(slice_urn)){
+    				toRemoveSliceState = currSliceState;
+    			}
+    		}
+    		if(toRemoveSliceState != null){
+    			try{
+    				Globals.Log.info("PublishQueue: Removing " + toRemoveSliceState.getSlice_urn() + " from sliceList");
+    				sliceList.remove(toRemoveSliceState);
+    			}
+    			catch(Exception e){
+    				Globals.Log.error("PublishQueue: Exception while deleting entry from Slice List : " + e);
+    			}
+    		}
+    	}
+    }
+
+    public void setPropsForSliceInSliceList(String slice_urn, SliceState.PubSubState newState, Date newEndTime, int newWaitTime){
+    	if(sliceList != null){
+    		Iterator<SliceState> it = sliceList.iterator();
+    		while(it.hasNext()){ // go through all the slicestates
+    			SliceState currSliceState = (SliceState) it.next();
+    			String currSliceUrn = currSliceState.getSlice_urn();
+    			if(currSliceUrn.equalsIgnoreCase(slice_urn)){
+    				currSliceState.setEndTime(newEndTime);
+    				currSliceState.setState(newState);
+    				currSliceState.setWaitTime(newWaitTime);
+    			}
+    		}
+    	}
+    }
+
 
 
 }

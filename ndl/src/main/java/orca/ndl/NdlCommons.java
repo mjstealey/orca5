@@ -100,7 +100,8 @@ public class NdlCommons {
     	"PREFIX ethernet:<http://geni-orca.renci.org/owl/ethernet.owl#>"+
     	"PREFIX compute:<http://geni-orca.renci.org/owl/compute.owl#>"+
     	"PREFIX storage:<http://geni-orca.renci.org/owl/storage.owl#>"+
-    	"PREFIX orca:<http://geni-orca.renci.org/owl/storage.owl#>"+
+    	"PREFIX exogeni:<http://geni-orca.renci.org/owl/exogeni.owl#>"+
+    	"PREFIX orca:<http://geni-orca.renci.org/owl/orca.rdf#>"+
     	"PREFIX domain:<http://geni-orca.renci.org/owl/domain.owl#>"+
     	"PREFIX ip4:<http://geni-orca.renci.org/owl/ip4.owl#>"+
     	"PREFIX geni:<http://geni-orca.renci.org/owl/geni.owl#>" +
@@ -121,9 +122,9 @@ public class NdlCommons {
 
 	public static final Property hasInputInterface, connectedTo, linkTo,switchedTo,hasSwitchMatrix,
 	hasRequestGroupURL,inRequestNetworkConnection,
-    hasOutputInterface, adaptationProperty, adaptationPropertyOf, carryReservation, atLayer,hasCastType,
+    hasOutputInterface, adaptationProperty, adaptationPropertyOf, taggedEthernetProperty, carryReservation, atLayer,hasCastType,
     switchingCapability, swappingCapability, tunnelingCapability, connectionDirection, vlan, ocgLine,layerSwapLabelProperty,
-    portOccupied, inConnection, visited, numHop, openflowCapableProperty, modifySubjectProperty, modifyAddElementProperty,
+    portOccupied, inConnection, visited, numHop, openflowCapableProperty, modifySubjectProperty, modifyAddElementProperty, modifyElementProperty, isModifyProperty,
     modifyRemoveElementProperty, modifyIncreaseByProperty,manifestHasParent,manifestHasChild;
 
 	
@@ -135,7 +136,7 @@ public class NdlCommons {
 	public static final Property hasColorAttribute, hasColorBlob, hasColorKey, hasColorLabel, hasColorValue, hasColorXMLBlob, hasColorXMLCompressedBlob;
 	
 	public static final Resource networkStorageClass, computeElementClass, serverCloudClass, topologyNetworkConnectionClass, topologyBroadcastConnectionClass, 
-	vmResourceTypeClass,bmResourceTypeClass,lunResourceTypeClass,ethernetNetworkElementClass, multicastOntClass,
+	vmResourceTypeClass,bmResourceTypeClass,fourtygbmResourceTypeClass,lunResourceTypeClass,ethernetNetworkElementClass, multicastOntClass,
 	topologyCrossConnectClass, topologyLinkConnectionClass,deviceOntClass, switchingMatrixOntClass,interfaceOntClass,vlanResourceTypeClass,
 	networkDomainOntClass, networkServiceClass, domainSSHServiceClass, reservationOntClass, manifestOntClass, domainAggregateManagerClass,domainControllerClass,
 	requestReservationStateClass, requestActiveState, requestActiveTicketedState, topologyLinkClass, 
@@ -170,6 +171,7 @@ public class NdlCommons {
 		layerSwapLabelProperty =  new PropertyImpl(ORCA_NS + "layer.owl#" + "swapLabel");
         adaptationPropertyOf = new PropertyImpl(ORCA_NS + "layer.owl#adaptationPropertyOf");
         adaptationProperty = new PropertyImpl(ORCA_NS + "layer.owl#adaptationProperty");
+        taggedEthernetProperty = new PropertyImpl(ORCA_NS + "ethernet.owl#Tagged-Ethernet");
         availableLabelSet = new PropertyImpl(ORCA_NS + "layer.owl#availableLabelSet");
         lowerBound = new PropertyImpl(ORCA_NS + "layer.owl#lowerBound");
         upperBound = new PropertyImpl(ORCA_NS + "layer.owl#upperBound");
@@ -189,6 +191,8 @@ public class NdlCommons {
         isLabelProducer = new PropertyImpl(ORCA_NS + "layer.owl#isLabelProducer");
         modifySubjectProperty = new PropertyImpl(ORCA_NS + "modify.owl#modifySubject");
         modifyAddElementProperty = new PropertyImpl(ORCA_NS + "modify.owl#addElement");
+        modifyElementProperty = new PropertyImpl(ORCA_NS + "modify.owl#modifyElement");
+        isModifyProperty = new PropertyImpl(ORCA_NS + "modify.owl#isModify");
         modifyRemoveElementProperty = new PropertyImpl(ORCA_NS + "modify.owl#removeElement");
         modifyIncreaseByProperty = new PropertyImpl(ORCA_NS + "modify.owl#increaseBy");
         manifestHasParent = new PropertyImpl(ORCA_NS + "manifest.owl#hasParent");
@@ -288,6 +292,7 @@ public class NdlCommons {
 		computeElementClass = new ResourceImpl(ORCA_NS + "compute.owl#ComputeElement");
 		vmResourceTypeClass = new ResourceImpl(ORCA_NS + "compute.owl#VM");
 		bmResourceTypeClass = new ResourceImpl(ORCA_NS + "compute.owl#BareMetalCE");
+		fourtygbmResourceTypeClass = new ResourceImpl(ORCA_NS + "compute.owl#FourtyGBareMetalCE");
 		lunResourceTypeClass = new ResourceImpl(ORCA_NS + "storage.owl#LUN");
 		
 		serverCloudClass = new ResourceImpl(ORCA_NS + "compute.owl#ServerCloud");
@@ -379,7 +384,7 @@ public class NdlCommons {
 	};
 	
 	public static final String[] orcaSubstrateFiles = {
-		"orca.rdf"
+		"orca.rdf", "ben.rdf", "ben-dtn.rdf", "ben-6509.rdf"
 	};
 	
 	public static final Map<String, String> externalSchemas; 
@@ -843,8 +848,8 @@ public class NdlCommons {
         String s = "SELECT ?r ";
         String f = "";
         String w = "WHERE {" + 
-        	"{?r ?p "+ "<" + rsURI + ">" +"." + " ?p rdf:type layer:AdaptationProperty} UNION{" +
-        	"?r layer:AdaptationProperty " +"<" + rsURI + ">}"+
+        	"{?r ?p "+ "<" + rsURI + ">" +"." + " ?p rdf:type layer:AdaptationProperty.} "
+        			+ "UNION{" + "?r layer:AdaptationProperty " +"<" + rsURI + ">}"+
         	"      }";
         String queryPhrase = createQueryString(s, f, w);
 
@@ -1326,10 +1331,12 @@ public class NdlCommons {
 	 */
 	public static Resource getResourceType(Resource r) {
 		assert(r != null);
-		Statement rtStmt = r.getProperty(RDF_TYPE);
-		
-		if (rtStmt != null)
-			return rtStmt.getResource();
+		for (StmtIterator j=r.listProperties(RDF_TYPE);j.hasNext();){
+			Resource type=j.next().getResource();
+			if(type.getURI().endsWith("NamedIndividual"))
+				continue;
+			return type;
+		}
 		return null;
 	}
 	
@@ -1571,6 +1578,20 @@ public class NdlCommons {
 		Statement splittableStmt = res.getProperty(topologySplittableProperty);
 		if (splittableStmt != null) {
 			return splittableStmt.getBoolean();
+		}
+		return false;
+	}
+	
+	/**
+	 * Is this element a modified element? (default false, if unspecified)
+	 * @param res
+	 * @return
+	 */
+	public static boolean isModify(Resource res) {
+		assert(res != null);
+		Statement isModifyStmt = res.getProperty(isModifyProperty);
+		if (isModifyStmt != null) {
+			return isModifyStmt.getBoolean();
 		}
 		return false;
 	}
@@ -2375,7 +2396,7 @@ public class NdlCommons {
 	public static boolean isBareMetal(Resource r) {
 		if (r.hasProperty(domainHasResourceTypeProperty)) {
 			Statement st = r.getProperty(domainHasResourceTypeProperty);
-			if (st.getResource().equals(bmResourceTypeClass)) 
+			if (st.getResource().equals(bmResourceTypeClass) || (st.getResource().equals(fourtygbmResourceTypeClass))) 
 				return true;
 		}
 		return false;
@@ -2460,7 +2481,8 @@ public class NdlCommons {
 	 * @return
 	 */
 	public static boolean isStitchingNodeInManifest(Resource r) {
-
+		if(r==null)
+			return false;
 		if (hasResourceType(r, deviceOntClass)) {
 			Resource dom = getDomain(r);
 			if(dom==null)
@@ -2551,7 +2573,8 @@ public class NdlCommons {
 	    model.setNsPrefix("request-schema", ORCA_NS + "request.owl#");
 	    model.setNsPrefix("ip4", ORCA_NS + "ip4.owl#");
 	    model.setNsPrefix("compute", ORCA_NS + "compute.owl#");
-	    model.setNsPrefix("orca", ORCA_NS + "orca.owl#");
+	    model.setNsPrefix("exogeni", ORCA_NS + "exogeni.owl#");
+	    model.setNsPrefix("orca", ORCA_NS + "orca.rdf#");
 	    model.setNsPrefix("domain", ORCA_NS + "domain.owl#");
 	    model.setNsPrefix("eucalyptus", ORCA_NS + "eucalyptus.owl#");
 	    model.setNsPrefix("ec2", ORCA_NS + "ec2.owl#" );
