@@ -185,7 +185,8 @@ class VM:
                 network=[]
                 for n in self.nova_client.networks.list():
                     LOG.debug('Network: ' +  str(n.label) + ", " + str(n.id))
-                    if n.label == "flat-data-net":
+                    #if n.label == "flat-data-net":   #used for CloudLab/default openstack
+                    if n.label == "CH-816532-net":    #tenent id + "-net" used for Chameleon
                         network.append({ 'net-id': n.id })
                         break
                 key=self.nova_client.keypairs.find(name=tenant_id)
@@ -231,10 +232,11 @@ class VM:
 
                 try:
                     #start the vm
-                    self.nova_server = self.nova_client.servers.create(name,image,flavor,nics=network,key_name=os.environ['EC2_TENANT_ID'],userdata=user_data
+                    self.nova_server = self.nova_client.servers.create(name,image,flavor,nics=network,key_name=os.environ['EC2_TENANT_ID'],userdata=user_data,scheduler_hints={"reservation":str(os.environ['EC2_RESERVATION_ID'])}
                                                                        #files={ os.environ['COMET_VM_KEYSTORE_DST'] + ".base64": server_jks , 
                                                                        #        os.environ['COMET_VM_TRUSTSTORE_DST'] + ".base64": truststore_jks ,
                                                                        #        os.environ['COMET_VM_PROPERTIES_DST']: comet_vm_properties }
+                                                                       
                                                                        )
                     self.nova_id = self.nova_server.id
                 except Exception as e:
@@ -489,7 +491,16 @@ class VM:
         return self.nova_server.hostId
 
     def get_host_name(self):
-        return str(getattr(self.nova_server, 'OS-EXT-SRV-ATTR:host'))
+        hostname=''
+        try:
+            hostname = str(getattr(self.nova_server, 'OS-EXT-SRV-ATTR:host'))
+        except AttributeError as e:
+            LOG.info("Hostname unavailable");
+            hostname = 'unavailable'
+
+        return hostname
+
+        #return str(getattr(self.nova_server, 'OS-EXT-SRV-ATTR:host'))
 
     def get_attribute(self, attribute):
         return str(getattr(self.nova_server, str(attribute)))
@@ -517,18 +528,23 @@ class VM:
     
     def get_ip(self):
         LOG.debug("Get ip for vm: " + str(self.get_name()) + ", GET IP NOT IMPLEMENTED")
-        return "GET IP NOT IMPLEMENTED"
+        #return "GET IP NOT IMPLEMENTED"
 
         ip=""
         try:
-                #setup connection to nova 
-                nova_client= novaclient.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL']);
+            #setup connection to nova
+            
+            LOG.debug("setting nova_client = novaclient.Client('2', " + str(os.environ['OS_USERNAME']) + ", " +  str(os.environ['OS_PASSWORD'])  + ", " +  str(os.environ['OS_TENANT_NAME']) + ", " + str(os.environ['OS_AUTH_URL']) + ");" )
+            nova_client= novaclient.Client('2', os.environ['OS_USERNAME'], os.environ['OS_PASSWORD'], os.environ['OS_TENANT_NAME'], os.environ['OS_AUTH_URL']);
 
-                #start vm 
-                self.nova_server = nova_client.servers.get(id)
-
-                LOG.info("PRUTH: instance - ID = " + str(self.nova_server.id)  + ", name = " + str(self.nova_server.name)  + ", status = " + str(self.nova_server.status) + ", interface_list = " + str(self.nova_server.networks) )
-                ip = self.nova_server.networks['flat-data-net'][0]
+            LOG.debug("self.nova_server.id = " + str(self.nova_server.id))
+            #start vm 
+            self.nova_server = nova_client.servers.get(self.nova_server.id)
+                    
+            LOG.info("PRUTH: instance - ID = " + str(self.nova_server.id)  + ", name = " + str(self.nova_server.name)  + ", status = " + str(self.nova_server.status) + ", interface_list = " + str(self.nova_server.networks) )
+            #ip = self.nova_server.networks['flat-data-net'][0]
+            ip = self.nova_server.networks['CH-816532-net'][0]
+            
         except:
             LOG.error("Failed to get ip for self.nova_server " + str(self.nova_server.id)) 
              

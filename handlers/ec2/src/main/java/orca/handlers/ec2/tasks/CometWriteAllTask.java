@@ -48,10 +48,14 @@ class CometWriteAllGenerator_v1 extends CometWriteAllGenerator{
     
 
     public CometWriteAllGenerator_v1(org.apache.tools.ant.Project project){
+
+	System.out.println("Creating CometWriteAllGenerator_v1");
 	    
 	this.project = project;
 	this.outputProperty = "";
 
+
+	System.out.println("CometWriteAllGenerator_v1: 100");
 	Properties cometProperties = null;
 	try {
 	    cometProperties = COMETClientUtils.getClientConfigProps("/etc/orca/am+broker-12080/config/comet.site.properties");
@@ -59,8 +63,11 @@ class CometWriteAllGenerator_v1 extends CometWriteAllGenerator{
 	    e.printStackTrace();
 	}
 
+	System.out.println("CometWriteAllGenerator_v1: 110");
 	cometClient = new COMETClientImpl(cometProperties);
 	
+
+	System.out.println("CometWriteAllGenerator_v1: 120");
 	//set cometSliceID
 	String temp = getProject().getProperty(UnitProperties.UnitSliceID);
         if (temp != null) {
@@ -69,6 +76,7 @@ class CometWriteAllGenerator_v1 extends CometWriteAllGenerator{
 	    System.out.println("Error setting cometSliceID");
 	}
 
+	System.out.println("CometWriteAllGenerator_v1: 130");
 	//set cometReservationID
         temp = getProject().getProperty(UnitProperties.UnitReservationID);
         if (temp != null) {
@@ -77,10 +85,12 @@ class CometWriteAllGenerator_v1 extends CometWriteAllGenerator{
 	    System.out.println("Error setting cometReservationID");
 	}
 
+	System.out.println("CometWriteAllGenerator_v1: 140");
+	System.out.println("CometWriteAllGenerator_v1: 140: " + cometSliceID + ", " + cometReservationID);
 	//Create the new vm entry in Comet..  should be done in the controller eventually
 	cometClient.createNewEntry(cometSliceID,  cometReservationID, "vm");
 
-	
+	System.out.println("CometWriteAllGenerator_v1: done");
     }
     /*
     public void doIt(PrintWriter out) throws Exception {
@@ -143,7 +153,8 @@ class CometWriteAllGenerator_v1 extends CometWriteAllGenerator{
 
     
     public void writePhysicalHost() throws Exception {
-        String physicalHost = getProject().getProperty(UnitProperties.UnitEC2Host);
+        //String physicalHost = getProject().getProperty(UnitProperties.UnitEC2Host);
+	String physicalHost = getProject().getProperty("shirako.save.unit.ec2.host"); 
         if (physicalHost != null) {
             cometClient.setPhysicalHost(cometSliceID,  cometReservationID, physicalHost);
         } else {
@@ -152,7 +163,9 @@ class CometWriteAllGenerator_v1 extends CometWriteAllGenerator{
     }
 
     public void writeManagmentIP() throws Exception {
-        String managmentIP = getProject().getProperty(UnitProperties.UnitEC2Host);
+        //String managmentIP = getProject().getProperty(UnitProperties.UnitEC2Host);
+	String managmentIP = getProject().getProperty("shirako.save.unit.manage.ip");
+
 	if (managmentIP != null) {
             cometClient.setManagementIP(cometSliceID,  cometReservationID, managmentIP);
         } else {
@@ -313,12 +326,19 @@ public class CometWriteAllTask extends OrcaAntTask{
 
 
             CometWriteAllGenerator_v1 generator = new CometWriteAllGenerator_v1(getProject());
-	    
+
+	    System.out.println("cometWriteAll:  writeScript");
 	    generator.writeScript();
+	    System.out.println("cometWriteAll:  writePhysicalHost");
 	    generator.writePhysicalHost();
+	    System.out.println("cometWriteAll:  writeManagmentIP");
 	    generator.writeManagmentIP();
+	    System.out.println("cometWriteAll:  writeInterfaces");
+
 	    generator.writeInterfaces();
+	    System.out.println("cometWriteAll:  wrtieHostName");
 	    generator.writeHostName();
+	    System.out.println("cometWriteAll:  done");
 
 	    //if(outputProperty != null)
 	    //getProject().setProperty(outputProperty,generator.getOutputProperty());

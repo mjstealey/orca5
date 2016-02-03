@@ -81,6 +81,7 @@ try:
                   os.environ['UNIT_HOSTNAME_URL'])
 
 
+
     LOG.info("Success starting VM: " + str(vm.get_name()) )
 
     #time.sleep(60);

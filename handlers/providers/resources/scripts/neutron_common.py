@@ -152,6 +152,7 @@ class Neutron_Network:
         name = str(tenant_id) + ":" + str(network) + ":" + str(net_name)
 
         neutron_client = client.Client('2.0'
+                                       ,insecure=False
                                        ,username=os.environ['NEUTRON_USERNAME']
                                        ,password=os.environ['NEUTRON_PASSWORD']
                                        ,auth_url=os.environ['NEUTRON_AUTH_URL']

@@ -13,7 +13,7 @@ try:
     sys.path.append(os.environ['EC2_DIR'] + "/scripts")
     from nova_api_v2_common import *
 except:
-    print 'Error in nova-api-v2-get-ip: cannot import nova_api_v2_common.py'
+    print 'Error in nova-api-v2-get-attribute: cannot import nova_api_v2_common.py'
     sys.exit(1)
 
 try:
@@ -42,7 +42,7 @@ try:
     LOG.info('Starting Logger')
 
 except Exception as e:
-    print 'Error in nova-api-v2-get-ip: Cannot open log file'
+    print 'Error in nova-api-v2-get-attribute: Cannot open log file'
     print type(e)
     print e.args
     print e
@@ -54,17 +54,20 @@ except Exception as e:
 
 try:
     #DO THE WORK
-    LOG.debug("nova-api-v2-get-ip: " + str(sys.argv))
+    LOG.debug("nova-api-v2-get-attribute: " + str(sys.argv))
 
-    instance_uuid = sys.argv[1]
-    
-    instance_ip = VM.get_ip(instance_uuid)
+    instance_id = sys.argv[1]
+    attribute = sys.argv[2]
+        
+    vm = VM.get_vm(instance_id)
 
-    LOG.info("Got ip for instance: " + str(instance_uuid) + ": " + str(instance_ip))
-    print instance_ip
+    instance_name = vm.get_attribute(attribute)
+
+    LOG.info("Got name for instance: " + str(instance_id) + ": " + str(instance_name))
+    print instance_name
 
 except Exception as e:
-    LOG.error("nova-api-v2-get-ip: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
+    LOG.error("nova-api-v2-get-attribute: " + str(type(e)) + " : " + str(e) + "\n" + str(traceback.format_exc()))
     sys.exit(1)
 
 sys.exit(0)

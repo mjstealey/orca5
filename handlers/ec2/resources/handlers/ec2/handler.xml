@@ -57,6 +57,11 @@
 				<var name="create.instance.output" unset="true" />
 				<var name="code" unset="true" />
 				<var name="message" unset="true" />
+				
+				<!-- TEMP PRUTH : Hack for Chameleon -->
+				<var name="ec2.instance.type" unset="true" />
+				<property ec2.instance.type="m1.small" />
+
 				<echo message="${ec2.scripts}/${cloud.type}-start " />
 				<echo message="UNIT_HOSTNAME_URL=${unit.hostname.url}" />
 				<echo message="EC2_HOME=${ec2.home}" />
@@ -257,6 +262,8 @@
 						<var name="create.instance.output" unset="true" />
 						<var name="code" unset="true" />
 						<var name="message" unset="true" />
+						
+
 						<echo message="${ec2.scripts}/${cloud.type}-start " />
 						<echo message="UNIT_HOSTNAME_URL=${unit.hostname.url}" />
 						<echo message="EC2_HOME=${ec2.home}" />
@@ -293,7 +300,13 @@
 							<env key="AMI_NAME" value="${ec2.ami.name}" />
 							<env key="AKI_NAME" value="${ec2.aki.name}" />
 							<env key="ARI_NAME" value="${ec2.ari.name}" />
-							<env key="EC2_INSTANCE_TYPE" value="${ec2.instance.type}" />
+							
+							<env key="EC2_RESERVATION_ID" value="${ec2.reservation.id}" /> 							
+							<env key="EC2_INSTANCE_TYPE" value="${ec2.default.instance.type}" /> 
+							<!-- <env key="EC2_INSTANCE_TYPE" value="${instance.type}" />  -->
+							<!-- <env key="EC2_INSTANCE_TYPE" value="m1.medium" /> -->
+							
+
 							<env key="EC2_SSH_KEY" value="${ec2.ssh.key}" />
 							<env key="EC2_USE_PUBLIC_ADDRESSING" value="${ec2.use.public.addressing}" />
 							<env key="EC2_PING_RETRIES" value="${ec2.ping.retries}" />
@@ -333,7 +346,7 @@
 								-->
 
 								<!-- obtain worker node information (if available) -->
-								
+					
 								<var name="shirako.save.unit.ec2.host" unset="true" />
 								<var name="code" unset="true" />
 								<var name="message" unset="true" />
@@ -353,7 +366,7 @@
 								
 
 								<!-- obtain console-log (if available) -->
-								<!--
+								
 								<var name="shirako.save.unit.ec2.consolelog" unset="true" />
 								<var name="code" unset="true" />
 								<var name="message" unset="true" />	
@@ -369,12 +382,11 @@
 									<env key="EC2_REQUEST_TIMEOUT" value="${ec2.request.timeout}" />
 									<arg value="${shirako.save.unit.ec2.instance}" />
 								</exec>
-								-->
+								
 								<!-- <echo message="get-console-log exit code: ${code} consolelog=${shirako.save.unit.ec2.consolelog}" /> -->
 								
 	
 								<!-- obtain management IP address -->
-								<!--
 								<echo message="obtaining ip address for instance ${shirako.save.unit.ec2.instance}" />
 								<var name="code" unset="true" />
 								<var name="message" unset="true" />
@@ -391,7 +403,7 @@
 									<arg value="${shirako.save.unit.ec2.instance}" />
 								</exec>
 								<echo message="get-ip exit code: ${code} ip=${shirako.save.unit.manage.ip}" />
-								-->
+							
 
 								<!-- set the user's private key, if needed -->
 								<!--
@@ -535,8 +547,10 @@
 								</if>
 								
 								 <!-- test writing to comet -->
+								 <echo>Writing to COMET, START </echo>
                                                                  <!-- <ec2.comet.writeall sliceid="mysliceid" reservationid="myreservationid" key="mykey" value="myvalue" /> -->
-                                                                 <ec2.comet.writeall />
+                                                                  <ec2.comet.writeall /> 
+								 <echo>Writing to COMET, DONE </echo>
 
 								<!-- delete the userdata file -->
 								<delete file="${neuca.ini.file}" />
@@ -557,14 +571,15 @@
 		    <property name="shirako.target.code.message" value="none" />
 		  </else>
 		</if>
-		
 		<!-- ADD IB network on Cloudlab, HACK -->
                 <!-- ssh -i ~/geni_key_portal pruth0@controller /proj/cloudlab-PG0/pruth/scripts/add-ib-iface/add-ib-iface.sh compute1 instance-00000018 -->
+
 		<!--
+		<echo message="**************** ADD IB network on Cloudlab, HACK *************************"/>
 		<var name="shirako.save.unit.ec2.instancename" unset="true" />
-                <var name="code" unset="true" />
-                <var name="message" unset="true" />
-                <exec executable="${ec2.scripts}/${cloud.type}-get-attribute" resultproperty="code" outputproperty="shirako.save.unit.ec2.instancename">
+        <var name="code" unset="true" />
+        <var name="message" unset="true" />
+        <exec executable="${ec2.scripts}/${cloud.type}-get-attribute" resultproperty="code" outputproperty="shirako.save.unit.ec2.instancename">
                   <env key="UNIT_HOSTNAME_URL" value="${unit.hostname.url}" />
                   <env key="EC2_HOME" value="${ec2.home}" />
                   <env key="EC2_LOG_DIR" value="${ec2.log.dir}" />
@@ -575,7 +590,7 @@
                   <env key="EC2_CONNECTION_TIMEOUT" value="${ec2.connection.timeout}" />
                   <env key="EC2_REQUEST_TIMEOUT" value="${ec2.request.timeout}" />
                   <arg value="${shirako.save.unit.ec2.instance}" />
-		  <arg value="OS-EXT-SRV-ATTR:instance_name" />
+		          <arg value="OS-EXT-SRV-ATTR:instance_name" />
                 </exec>
                 <echo message="get-attribute exit code: ${code} host=${shirako.save.unit.ec2.host}" />
 
@@ -585,9 +600,9 @@
                 <echo message="adding IB to instance: ${unit.ec2.instance} aka ${shirako.save.unit.ec2.instance}, instance_name : ${shirako.save.unit.ec2.instancename}" />
                 <echo message="hostname: ${shirako.save.unit.ec2.host}" />
 		<echo message="/usr/bin/ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i /geni_key_portal pruth0@controller /proj/cloudlab-PG0/pruth/scripts/add-ib-iface/add-ib-iface.sh ${shirako.save.unit.ec2.host} ${shirako.save.unit.ec2.instancename}" />
-		-->
 
-                <!--
+
+                
 		<exec executable="/usr/bin/ssh" resultproperty="code" outputproperty="add.ib.output">
                   <arg value="-o" />
                   <arg value="UserKnownHostsFile=/dev/null" />

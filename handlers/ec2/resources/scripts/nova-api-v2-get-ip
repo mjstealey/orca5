@@ -58,7 +58,12 @@ try:
 
     instance_uuid = sys.argv[1]
     
-    instance_ip = VM.get_ip(instance_uuid)
+    LOG.debug("Getting instance_ip for instance_uuid = " + str(instance_uuid))
+
+    vm = VM.get_vm(instance_uuid)
+    instance_ip = vm.get_ip()
+
+    #instance_ip = VM.get_ip(instance_uuid)
 
     LOG.info("Got ip for instance: " + str(instance_uuid) + ": " + str(instance_ip))
     print instance_ip
