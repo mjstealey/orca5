@@ -3,6 +3,7 @@
 <!ENTITY drivertasks SYSTEM "../common/drivertasks.xml">
 <!ENTITY paths SYSTEM "../common/paths.xml">
 ]>
+
 <project name="ec2" basedir=".">
 
   &paths;
