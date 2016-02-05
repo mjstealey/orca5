@@ -11,7 +11,7 @@
   
   <!--<property file="test.properties" />-->
 
-	<target name="join" depends="resolve.configuration">
+	   <target name="join" depends="resolve.configuration">
 		<taskdef resource="orca/handlers/ec2/ec2.xml" classpathref="run.classpath" loaderref="run.classpath.loader" />
 		<tstamp prefix="start">
 			<format property="TIME" pattern="MM/dd/yyyy HH:mm:ss z" />
