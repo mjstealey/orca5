@@ -15,9 +15,11 @@ import orca.ndl.DomainResourceType;
 import orca.ndl.DomainResources;
 import orca.ndl.NdlCommons;
 import orca.ndl.NdlModel;
+import orca.ndl.NdlModel.ModelType;
 import orca.ndl.NdlException;
 import orca.ndl.OntProcessor;
 import orca.ndl.elements.DomainElement;
+import orca.ndl.util.ModelFolders;
 
 import org.apache.log4j.Logger;
 
@@ -52,12 +54,14 @@ public class Domain implements IDomainAbstractor{
 	public Domain(){};
 	
 	public Domain(String inputFile) throws IOException, NdlException {
-		OntModel model = NdlModel.getModelFromFile(inputFile,OntModelSpec.OWL_MEM_RDFS_INF, true);
+		//OntModel model = NdlModel.getModelFromFile(inputFile,OntModelSpec.OWL_MEM_RDFS_INF, true);
+		OntModel model = NdlModel.getModelFromFile(inputFile, OntModelSpec.OWL_MEM_RDFS_INF, false, ModelType.TdbEphemeral, null);
 		init(model);
 	}
 
 	public Domain(InputStream stream) throws IOException, NdlException {
-		OntModel model = NdlModel.getModelFromStream(stream, OntModelSpec.OWL_MEM_RDFS_INF,true);
+		//OntModel model = NdlModel.getModelFromStream(stream, OntModelSpec.OWL_MEM_RDFS_INF,true);
+		OntModel model = NdlModel.getModelFromStream(stream, OntModelSpec.OWL_MEM_RDFS_INF, false, ModelType.TdbEphemeral, null);
 		init(model);
 	}
 	
