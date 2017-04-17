@@ -183,10 +183,11 @@ public class NdlModel {
 	 * For inference use OntModelSpec.RDFS_MEM_TRANS_INF. Optionally create a model with a new DocumentManager.
 	 * @param modelStream
 	 * @param spec
-	 * @param uniqueDM - unique document manager (usually yes)
-	 * @param modelType - in-memory, TDB ephemeral or persistent
-	 * @param folderName - optionally, the name of the folder where to save TDB (temprorary will be created if null)
+	 * @param uniqueDM
+	 * @param t
+	 * @param folderName
 	 * @return
+	 * @throws NdlException
 	 */
 	public static OntModel getModelFromStream(InputStream modelStream, OntModelSpec spec, boolean uniqueDM, ModelType t, String folderName) throws NdlException {
 		NdlCommons.getNdlLogger().info("getModelFromStream(): Creating " + t + " model in " + folderName);
@@ -225,7 +226,7 @@ public class NdlModel {
 					model = ModelFactory.createOntologyModel(s);
 				break;
 			case TdbPersistent: 
-				if (globalTDB && (folderName != null)) {
+				if (globalTDB) {
 					File dir = null;
 					dir = ModelFolders.getInstance().createNamedDirectory(folderName);
 					if (dir == null)
@@ -284,11 +285,14 @@ public class NdlModel {
 	/**
 	 * Get a model from file. If spec is null, OntModelSpec.OWL_MEM - simple in memory model will be built.
 	 * For inference use OntModelSpec.RDFS_MEM_TRANS_INF. Optionally create a model with a new DocumentManager.
+	 * 
 	 * @param aFile
+	 * @param spec
 	 * @param uniqueDM
-	 * @param modelType - in-memory, TDB persistent or ephemeral
-	 * @param folderName - for TDB
+	 * @param t - model type (in-memory, TDB ephemeral or persistent)
+	 * @param folderName - can be null for in-memory or for TDB ephemeral - in this case System /tmp space is used
 	 * @return
+	 * @throws NdlException
 	 */
 	public static OntModel getModelFromFile(String aFile, OntModelSpec spec, boolean uniqueDM, ModelType t, String folderName) throws NdlException {
 		NdlCommons.getNdlLogger().info("getModelFromFile(): Creating model from " + aFile);

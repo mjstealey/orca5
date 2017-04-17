@@ -54,14 +54,14 @@ public class Domain implements IDomainAbstractor{
 	public Domain(){};
 	
 	public Domain(String inputFile) throws IOException, NdlException {
-		OntModel model = NdlModel.getModelFromFile(inputFile,OntModelSpec.OWL_MEM_RDFS_INF, true);
-		//OntModel model = NdlModel.getModelFromFile(inputFile, OntModelSpec.OWL_MEM_RDFS_INF, false, ModelType.TdbEphemeral, null);
+		//OntModel model = NdlModel.getModelFromFile(inputFile,OntModelSpec.OWL_MEM_RDFS_INF, true);
+		OntModel model = NdlModel.getModelFromFile(inputFile, OntModelSpec.OWL_MEM_RDFS_INF, true, ModelType.TdbEphemeral, null);
 		init(model);
 	}
 
 	public Domain(InputStream stream) throws IOException, NdlException {
-		OntModel model = NdlModel.getModelFromStream(stream, OntModelSpec.OWL_MEM_RDFS_INF,true);
-		//OntModel model = NdlModel.getModelFromStream(stream, OntModelSpec.OWL_MEM_RDFS_INF, false, ModelType.TdbEphemeral, null);
+		//OntModel model = NdlModel.getModelFromStream(stream, OntModelSpec.OWL_MEM_RDFS_INF,true);
+		OntModel model = NdlModel.getModelFromStream(stream, OntModelSpec.OWL_MEM_RDFS_INF, true, ModelType.TdbEphemeral, null);
 		init(model);
 	}
 	

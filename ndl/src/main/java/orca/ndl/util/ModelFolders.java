@@ -131,7 +131,7 @@ public class ModelFolders {
 	 * @return
 	 */
 	public synchronized File createNamedDirectory(String p) {
-		if (noMoreFolders)
+		if ((noMoreFolders) || (p == null))
 			return null;
 		
 		// create a named directory that is not meant to be  removed after JVM exits
