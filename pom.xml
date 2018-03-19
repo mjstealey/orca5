@@ -687,6 +687,7 @@
             <build>
                 <plugins>
                     <!-- Attach javadocs -->
+                    <!--
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
@@ -700,6 +701,7 @@
                             </execution>
                         </executions>
                     </plugin>
+                    -->
 
                     <!-- Create a binary distribution: this was copied from maven's pom
                         file. Update it!!! Info about this plugin: http://maven.apache.org/plugins/maven-assembly-plugin/
